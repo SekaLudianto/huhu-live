@@ -15,7 +15,6 @@ import FollowMeOverlay from './components/FollowMeOverlay';
 import AdminPanel from './components/AdminPanel';
 import ParticipationReminderOverlay from './components/ParticipationReminderOverlay';
 import RankInfoOverlay from './components/RankInfoOverlay';
-import ValidationToast from './components/ValidationToast';
 import { User, LeaderboardEntry, ChatMessage, GiftMessage, SocialMessage, ConnectionState, TopGifterEntry } from './types';
 import { GameIcon, LeaderboardIcon, ChatIcon, GiftIcon, StatsIcon, DiamondIcon } from './components/icons/TabIcons';
 import { SpinnerIcon } from './components/icons/SpinnerIcon';
@@ -297,12 +296,6 @@ const App: React.FC = () => {
         <div className="w-full h-screen md:min-h-screen flex items-center justify-center p-2 md:p-4">
             <div className="mx-auto bg-gray-800 md:rounded-2xl shadow-lg p-2 md:p-6 flex flex-col w-full h-full md:max-w-6xl md:h-auto md:max-h-[95vh] relative">
                 
-                <ValidationToast 
-                    show={validationToast.show} 
-                    content={validationToast.content} 
-                    type={validationToast.type} 
-                />
-                
                 <RankOverlay isOpen={isRankOverlayVisible} leaderboard={leaderboard} />
                 <SultanOverlay 
                     isOpen={!!sultanInfo} 
@@ -345,7 +338,7 @@ const App: React.FC = () => {
                 <div className="hidden md:grid grid-cols-[2fr_3fr] gap-6 mt-6 flex-grow min-h-0">
                     <div className="flex flex-col gap-2">
                         <InfoMarquee />
-                        <WordleGame gameState={wordle.gameState} topGifters={topGifters} />
+                        <WordleGame gameState={wordle.gameState} topGifters={topGifters} validationToast={validationToast} />
                     </div>
                     <div className="flex flex-col gap-4">
                         <div className="grid grid-cols-2 gap-4">
@@ -366,7 +359,7 @@ const App: React.FC = () => {
                         </div>
                     )}
                     <div className="flex-grow overflow-y-auto">
-                        {activeTab === 'game' && <WordleGame gameState={wordle.gameState} topGifters={topGifters} />}
+                        {activeTab === 'game' && <WordleGame gameState={wordle.gameState} topGifters={topGifters} validationToast={validationToast} />}
                         {activeTab === 'stats' && (
                             <div className="space-y-4">
                                 <Stats 

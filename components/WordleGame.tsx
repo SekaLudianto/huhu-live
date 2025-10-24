@@ -5,13 +5,15 @@ import { User, TopGifterEntry } from '../types';
 import { SpinnerIcon } from './icons/SpinnerIcon';
 import { WordleGameState } from '../hooks/useWordleGame';
 import TopGifterMarquee from './TopGifterMarquee';
+import ValidationToast from './ValidationToast';
 
 interface WordleGameProps {
     gameState: WordleGameState;
     topGifters: TopGifterEntry[];
+    validationToast: { show: boolean, content: string, type: 'info' | 'error' };
 }
 
-const WordleGame: React.FC<WordleGameProps> = ({ gameState, topGifters }) => {
+const WordleGame: React.FC<WordleGameProps> = ({ gameState, topGifters, validationToast }) => {
     const {
         bestGuess,
         recentGuesses,
@@ -45,6 +47,11 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameState, topGifters }) => {
     return (
         <>
             <div className="bg-gray-900/50 p-2 md:p-6 rounded-lg flex flex-col h-full relative overflow-hidden">
+                <ValidationToast 
+                    show={validationToast.show}
+                    content={validationToast.content}
+                    type={validationToast.type}
+                />
                 {isPreparing ? (
                      <div className="text-center text-base md:text-lg font-bold mb-1 text-yellow-400 animate-pulse h-[28px] flex items-center justify-center">
                         Bersiap...

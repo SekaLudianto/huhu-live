@@ -8,7 +8,7 @@ interface ValidationToastProps {
 }
 
 const ValidationToast: React.FC<ValidationToastProps> = ({ show, content, type }) => {
-  const baseClasses = "fixed top-4 left-1/2 -translate-x-1/2 w-full max-w-md px-4 z-50 transition-all duration-300 ease-in-out";
+  const baseClasses = "absolute top-2 left-1/2 -translate-x-1/2 w-full max-w-md px-4 z-50 transition-all duration-300 ease-in-out";
   const showClasses = "opacity-100 translate-y-0";
   const hideClasses = "opacity-0 -translate-y-full pointer-events-none";
 
