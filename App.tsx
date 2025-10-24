@@ -296,6 +296,15 @@ const App: React.FC = () => {
         <div className="w-full h-screen md:min-h-screen flex items-center justify-center p-2 md:p-4">
             <div className="mx-auto bg-gray-800 md:rounded-2xl shadow-lg p-2 md:p-6 flex flex-col w-full h-full md:max-w-6xl md:h-auto md:max-h-[95vh] relative">
                 
+                <button
+                    onClick={() => setIsAdminPanelOpen(true)}
+                    className="absolute top-2 left-2 md:top-4 md:left-4 z-30 p-2 bg-gray-900/50 hover:bg-gray-700 rounded-full text-gray-400 hover:text-white transition-colors"
+                    aria-label="Buka Panel Admin"
+                    title="Buka Panel Admin (Ctrl+Shift+A)"
+                >
+                    <AdminIcon className="w-5 h-5" />
+                </button>
+
                 <RankOverlay isOpen={isRankOverlayVisible} leaderboard={leaderboard} />
                 <SultanOverlay 
                     isOpen={!!sultanInfo} 
