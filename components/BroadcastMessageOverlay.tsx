@@ -15,10 +15,10 @@ const BroadcastMessageOverlay: React.FC<BroadcastMessageOverlayProps> = ({ isOpe
 
   return (
     <div 
-        className={`fixed top-4 left-1/2 -translate-x-1/2 w-full max-w-lg px-4 z-40 transition-all duration-500 ease-in-out ${isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'}`}
+        className={`fixed inset-0 flex items-center justify-center p-4 z-40 transition-opacity duration-300 ease-in-out ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
     >
       <div 
-        className="bg-gray-900/80 backdrop-blur-md border border-yellow-500/50 shadow-lg rounded-xl p-4 flex items-start space-x-4"
+        className={`bg-gray-900/80 backdrop-blur-md border border-yellow-500/50 shadow-lg rounded-xl p-4 flex items-start space-x-4 w-full max-w-lg transition-all duration-300 ease-out ${isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`}
         style={{ textShadow: '0 1px 3px rgba(0,0,0,0.4)' }}
       >
         <div className="flex-shrink-0 pt-1">
