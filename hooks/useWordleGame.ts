@@ -269,6 +269,10 @@ export const useWordleGame = ({
     const processGuess = useCallback((guess: string, user: User) => {
         if (isGameOver || isPreparing || isLoading || isPaused) return;
 
+        if (guess.startsWith('!')) {
+            return;
+        }
+
         guess = guess.toUpperCase();
 
         if (guess.length !== WORD_LENGTH) {
