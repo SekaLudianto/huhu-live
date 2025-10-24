@@ -34,20 +34,20 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameState }) => {
 
     return (
         <>
-            <div className="bg-gray-100 dark:bg-gray-900/50 p-2 md:p-6 rounded-lg flex flex-col h-full">
+            <div className="bg-gray-900/50 p-2 md:p-6 rounded-lg flex flex-col h-full">
                 {isPreparing ? (
-                     <div className="text-center text-base md:text-lg font-bold mb-1 text-yellow-500 dark:text-yellow-400 animate-pulse h-[28px] flex items-center justify-center">
+                     <div className="text-center text-base md:text-lg font-bold mb-1 text-yellow-400 animate-pulse h-[28px] flex items-center justify-center">
                         Bersiap...
                     </div>
                 ) : timeLeft !== null ? (
-                    <div className={`text-center text-base md:text-lg font-bold mb-1 h-[28px] flex items-center justify-center ${timeLeft <= 30 ? 'text-red-500 animate-pulse' : 'text-gray-900 dark:text-white'}`}>
+                    <div className={`text-center text-base md:text-lg font-bold mb-1 h-[28px] flex items-center justify-center ${timeLeft <= 30 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
                         {formatTime(timeLeft)}
                     </div>
                 ) : (
                     <div className="h-[28px] mb-1"></div> 
                 )}
                 
-                <p className="text-center text-gray-500 dark:text-gray-400 text-xs md:text-sm mb-1 flex items-center justify-center">
+                <p className="text-center text-gray-400 text-xs md:text-sm mb-1 flex items-center justify-center">
                     {isPreparing ? 'Game baru akan segera dimulai!' : `Kirim gift, follow, atau komen 'Semangat ya!' untuk ikut menebak!`}
                 </p>
                 <div className="w-full mx-auto flex-grow overflow-hidden">
@@ -66,7 +66,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameState }) => {
                     )}
                 </div>
                 <div className="flex flex-col items-center justify-center mt-1">
-                    <div className="text-center text-sm md:text-base font-medium text-cyan-600 dark:text-cyan-400 h-6">
+                    <div className="text-center text-sm md:text-base font-medium text-cyan-400 h-6">
                         {isPreparing ? 'Kata baru sedang disiapkan...' : gameMessage}
                     </div>
                 </div>
@@ -82,16 +82,16 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameState }) => {
                  {modalContent.winner ? (
                     <div className="text-center">
                         {modalContent.praise && (
-                            <p className="text-lg italic text-green-500 dark:text-green-400 mb-2">
+                            <p className="text-lg italic text-green-400 mb-2">
                                 "{modalContent.praise}"
                             </p>
                         )}
-                        <img src={modalContent.winner.profilePictureUrl} alt={modalContent.winner.nickname} className="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-cyan-500 dark:border-cyan-400"/>
-                        <p className="text-xl font-bold text-gray-900 dark:text-white">{modalContent.winner.nickname}</p>
+                        <img src={modalContent.winner.profilePictureUrl} alt={modalContent.winner.nickname} className="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-cyan-400"/>
+                        <p className="text-xl font-bold text-white">{modalContent.winner.nickname}</p>
                         <p>Berhasil menebak kata:</p>
-                        <p className="text-cyan-600 dark:text-cyan-400 text-2xl font-bold my-2">{modalContent.word}</p>
+                        <p className="text-cyan-400 text-2xl font-bold my-2">{modalContent.word}</p>
                          {modalContent.definitions.length > 0 && modalContent.definitions[0] !== 'Definisi tidak ditemukan.' && (
-                             <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700 text-left">
+                             <div className="mt-2 pt-2 border-t border-gray-700 text-left">
                                  <p className="font-semibold">Definisi:</p>
                                  <ul className="text-sm list-disc list-inside space-y-1">
                                     {modalContent.definitions.map((def, i) => <li key={i}>{def}</li>)}
@@ -109,9 +109,9 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameState }) => {
                     </div>
                  ) : (
                     <>
-                         <p>Kata rahasianya adalah: <b className="text-cyan-600 dark:text-cyan-400 text-xl">{modalContent.word}</b></p>
+                         <p>Kata rahasianya adalah: <b className="text-cyan-400 text-xl">{modalContent.word}</b></p>
                          {modalContent.definitions.length > 0 && modalContent.definitions[0] !== 'Definisi tidak ditemukan.' && (
-                             <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700 text-left">
+                             <div className="mt-2 pt-2 border-t border-gray-700 text-left">
                                  <p className="font-semibold">Definisi:</p>
                                  <ul className="text-sm list-disc list-inside space-y-1">
                                     {modalContent.definitions.map((def, i) => <li key={i}>{def}</li>)}
@@ -128,7 +128,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameState }) => {
                          )}
                     </>
                  )}
-                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-4">Game baru akan dimulai secara otomatis...</p>
+                 <p className="text-xs text-gray-400 mt-4">Game baru akan dimulai secara otomatis...</p>
             </Modal>
         </>
     );

@@ -2,7 +2,7 @@ import React from 'react';
 
 const InfoMarquee: React.FC = () => {
     return (
-        <div className="bg-gray-200 dark:bg-gray-900/50 rounded-lg p-2 overflow-hidden whitespace-nowrap">
+        <div className="bg-gray-900/50 rounded-lg p-2 overflow-hidden whitespace-nowrap">
             <style>
                 {`
                 .marquee-text {
@@ -16,7 +16,7 @@ const InfoMarquee: React.FC = () => {
                 }
                 `}
             </style>
-            <div className="marquee-text text-sm text-cyan-700 dark:text-cyan-300">
+            <div className="marquee-text text-sm text-cyan-300">
                 <span className="mx-4">❤️ Jangan lupa <b>Follow</b> untuk ikutan main!</span>
                 <span className="mx-4">|</span>
                 <span className="mx-4">👆 <b>Tap-tap layar</b> biar makin semangat!</span>
