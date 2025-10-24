@@ -30,6 +30,7 @@ export interface WordleGameState {
         praise: string;
         definitions: string[];
         examples: string[];
+        originLanguage?: string;
     };
     bannedWords: Set<string>;
     skippedWordInfo: { word: string; timestamp: number } | null;
@@ -107,7 +108,7 @@ export const useWordleGame = ({
     const [isPaused, setIsPaused] = useState(false);
     const [gameMessage, setGameMessage] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalContent, setModalContent] = useState({ title: '', word: '', winner: null as User | null, praise: '', definitions: [] as string[], examples: [] as string[] });
+    const [modalContent, setModalContent] = useState({ title: '', word: '', winner: null as User | null, praise: '', definitions: [] as string[], examples: [] as string[], originLanguage: undefined as string | undefined });
     const [bannedWords, setBannedWords] = useState<Set<string>>(new Set());
     const [skippedWordInfo, setSkippedWordInfo] = useState<{ word: string; timestamp: number } | null>(null);
 
@@ -131,6 +132,7 @@ export const useWordleGame = ({
         const wordDef = wordService.getWordDefinition(solution);
         let definitions = wordDef ? [...wordDef.submakna] : ['Definisi tidak ditemukan.'];
         const examples = wordDef ? wordDef.contoh : [];
+        const originLanguage = wordDef ? wordDef.bahasa : undefined;
         const randomPraise = winner ? praisePhrases[Math.floor(Math.random() * praisePhrases.length)] : '';
         
         if (definitions[0] && definitions[0].length > 150) {
@@ -143,7 +145,8 @@ export const useWordleGame = ({
             winner,
             praise: randomPraise,
             definitions,
-            examples
+            examples,
+            originLanguage
         });
         setIsModalOpen(true);
     }, [solution]);

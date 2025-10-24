@@ -31,6 +31,41 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameState, topGifters }) => {
         if (seconds === null) return null;
         return seconds.toString();
     };
+    
+    const renderDefinitionAndSource = () => {
+        if (modalContent.definitions.length === 0 || modalContent.definitions[0] === 'Definisi tidak ditemukan.') {
+            return null;
+        }
+        
+        return (
+            <>
+                <div className="mt-3 pt-3 border-t border-gray-300 dark:border-gray-700 text-left">
+                    <p className="font-semibold text-gray-800 dark:text-gray-200">Definisi:</p>
+                    <ul className="text-sm list-disc list-inside space-y-1 text-gray-700 dark:text-gray-300">
+                        {modalContent.definitions.map((def, i) => <li key={i}>{def}</li>)}
+                    </ul>
+                    {modalContent.examples.length > 0 && (
+                        <>
+                            <p className="font-semibold mt-2 text-gray-800 dark:text-gray-200">Contoh:</p>
+                            <ul className="text-sm list-disc list-inside space-y-1 text-gray-700 dark:text-gray-300">
+                                {modalContent.examples.map((ex, i) => <li key={i} className="italic">"{ex}"</li>)}
+                            </ul>
+                        </>
+                    )}
+                </div>
+                 <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700 text-center text-xs text-gray-500 dark:text-gray-400">
+                     {modalContent.originLanguage && (
+                         <span className="inline-block bg-gray-200 dark:bg-gray-700 rounded-full px-2 py-0.5 text-xs font-semibold text-gray-700 dark:text-gray-300 mr-2 mb-1 md:mb-0">
+                             Asal Bahasa: {modalContent.originLanguage}
+                         </span>
+                     )}
+                     <span>
+                         Sumber: <a href={`https://kbbi.kemdikbud.go.id/entri/${modalContent.word.toLowerCase()}`} target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline">KBBI Kemdikbud</a>
+                     </span>
+                 </div>
+            </>
+        );
+    };
 
     return (
         <>
@@ -100,42 +135,12 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameState, topGifters }) => {
                              <p className="text-cyan-600 dark:text-cyan-300 text-2xl md:text-3xl font-bold tracking-[0.2em] uppercase">{modalContent.word}</p>
                         </div>
                         
-                         {modalContent.definitions.length > 0 && modalContent.definitions[0] !== 'Definisi tidak ditemukan.' && (
-                             <div className="mt-3 pt-3 border-t border-gray-300 dark:border-gray-700 text-left">
-                                 <p className="font-semibold text-gray-800 dark:text-gray-200">Definisi:</p>
-                                 <ul className="text-sm list-disc list-inside space-y-1 text-gray-700 dark:text-gray-300">
-                                    {modalContent.definitions.map((def, i) => <li key={i}>{def}</li>)}
-                                 </ul>
-                                  {modalContent.examples.length > 0 && (
-                                    <>
-                                     <p className="font-semibold mt-2 text-gray-800 dark:text-gray-200">Contoh:</p>
-                                     <ul className="text-sm list-disc list-inside space-y-1 text-gray-700 dark:text-gray-300">
-                                        {modalContent.examples.map((ex, i) => <li key={i} className="italic">"{ex}"</li>)}
-                                     </ul>
-                                    </>
-                                  )}
-                             </div>
-                         )}
+                         {renderDefinitionAndSource()}
                     </div>
                  ) : (
                     <>
                          <p>Kata rahasianya adalah: <b className="text-cyan-500 dark:text-cyan-400 text-xl">{modalContent.word}</b></p>
-                         {modalContent.definitions.length > 0 && modalContent.definitions[0] !== 'Definisi tidak ditemukan.' && (
-                             <div className="mt-3 pt-3 border-t border-gray-300 dark:border-gray-700 text-left">
-                                 <p className="font-semibold text-gray-800 dark:text-gray-200">Definisi:</p>
-                                 <ul className="text-sm list-disc list-inside space-y-1 text-gray-700 dark:text-gray-300">
-                                    {modalContent.definitions.map((def, i) => <li key={i}>{def}</li>)}
-                                 </ul>
-                                  {modalContent.examples.length > 0 && (
-                                    <>
-                                     <p className="font-semibold mt-2 text-gray-800 dark:text-gray-200">Contoh:</p>
-                                     <ul className="text-sm list-disc list-inside space-y-1 text-gray-700 dark:text-gray-300">
-                                        {modalContent.examples.map((ex, i) => <li key={i} className="italic">"{ex}"</li>)}
-                                     </ul>
-                                    </>
-                                  )}
-                             </div>
-                         )}
+                         {renderDefinitionAndSource()}
                     </>
                  )}
                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-4">Game baru akan dimulai dalam 10 detik...</p>

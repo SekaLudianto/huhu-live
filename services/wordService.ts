@@ -41,12 +41,13 @@ class WordService {
     return this.words.hasOwnProperty(word.toLowerCase());
   }
 
-  getWordDefinition(word: string): { submakna: string[], contoh: string[] } | null {
+  getWordDefinition(word: string): { submakna: string[], contoh: string[], bahasa?: string } | null {
       const entry = this.words[word.toLowerCase()];
       if (entry) {
           return {
               submakna: entry.submakna || [],
-              contoh: entry.contoh || []
+              contoh: entry.contoh || [],
+              bahasa: entry.bahasa
           };
       }
       return null;
