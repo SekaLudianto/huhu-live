@@ -16,10 +16,11 @@ import ParticipationReminderOverlay from './components/ParticipationReminderOver
 import RankInfoOverlay from './components/RankInfoOverlay';
 import BroadcastMessageOverlay from './components/BroadcastMessageOverlay';
 import { User, LeaderboardEntry, ChatMessage, GiftMessage, SocialMessage, ConnectionState, TopGifterEntry } from './types';
-import { GameIcon, LeaderboardIcon, ChatIcon, GiftIcon, StatsIcon, DiamondIcon } from './components/icons/TabIcons';
+import { GameIcon, LeaderboardIcon, StatsIcon, DiamondIcon, SocialIcon } from './components/icons/TabIcons';
 import { SpinnerIcon } from './components/icons/SpinnerIcon';
 import { AdminIcon } from './components/icons/AdminIcon';
 import { leaderboardService } from './services/firebaseService';
+import SocialTabContent from './components/SocialTabContent';
 
 const TARGET_USERNAME = 'achmadsyams';
 
@@ -283,8 +284,7 @@ const App: React.FC = () => {
         { name: 'stats', label: 'Statistik', icon: <StatsIcon /> },
         { name: 'leaderboard', label: 'Peringkat', icon: <LeaderboardIcon /> },
         { name: 'top_gifter', label: 'Orang Baik', icon: <DiamondIcon /> },
-        { name: 'chat', label: 'Obrolan', icon: <ChatIcon /> },
-        { name: 'gift', label: 'Hadiah', icon: <GiftIcon /> },
+        { name: 'social', label: 'Social', icon: <SocialIcon /> },
     ];
     
     if (!isConnected) {
@@ -396,10 +396,9 @@ const App: React.FC = () => {
                         )}
                         {activeTab === 'leaderboard' && <Leaderboard leaderboard={leaderboard} />}
                         {activeTab === 'top_gifter' && <TopGifterBox topGifters={topGifters} />}
-                        {activeTab === 'chat' && <ChatBox latestMessage={latestChatMessage} />}
-                        {activeTab === 'gift' && <GiftBox latestGift={latestGiftMessage} />}
+                        {activeTab === 'social' && <SocialTabContent latestChatMessage={latestChatMessage} latestGiftMessage={latestGiftMessage} />}
                     </div>
-                    <div className="flex-shrink-0 grid grid-cols-6 gap-1 p-1 bg-gray-900/50 mt-2 rounded-lg">
+                    <div className="flex-shrink-0 grid grid-cols-5 gap-1 p-1 bg-gray-900/50 mt-2 rounded-lg">
                         {tabs.map(tab => (
                             <button
                                 key={tab.name}
