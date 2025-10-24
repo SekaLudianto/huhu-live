@@ -3,7 +3,7 @@ import WordleGrid from './WordleGrid';
 import Modal from './Modal';
 import { User } from '../types';
 import { SpinnerIcon } from './icons/SpinnerIcon';
-import { WordleGameState, WordleGameActions } from '../hooks/useWordleGame';
+import { WordleGameState } from '../hooks/useWordleGame';
 
 interface WordleGameProps {
     gameState: WordleGameState;
@@ -21,8 +21,6 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameState }) => {
         gameMessage,
         isModalOpen,
         modalContent,
-        isRestartEnabled,
-        autoRestartGame,
     } = gameState;
 
     const WORD_LENGTH = 5;
@@ -48,7 +46,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameState }) => {
                 )}
                 
                 <p className="text-center text-gray-400 text-xs md:text-sm mb-1 flex items-center justify-center">
-                    {isPreparing ? 'Game baru akan segera dimulai!' : `Kirim gift, follow, atau komen 'Semangat ya!' untuk ikut menebak!`}
+                    {isPreparing ? 'Game baru akan segera dimulai!' : `Kirim gift, follow, atau komen 'SEMANGAT' untuk ikut menebak!`}
                 </p>
                 <div className="w-full mx-auto flex-grow overflow-hidden">
                     {isLoading ? (
@@ -74,10 +72,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameState }) => {
 
             <Modal 
                 isOpen={isModalOpen} 
-                onClose={autoRestartGame} 
                 title={modalContent.title}
-                isActionDisabled={!isRestartEnabled}
-                actionDelay={10}
             >
                  {modalContent.winner ? (
                     <div className="text-center">
@@ -87,8 +82,9 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameState }) => {
                             </p>
                         )}
                         <img src={modalContent.winner.profilePictureUrl} alt={modalContent.winner.nickname} className="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-cyan-400"/>
-                        <p className="text-xl font-bold text-white">{modalContent.winner.nickname}</p>
-                        <p>Berhasil menebak kata:</p>
+                        <p className="text-sm text-gray-200">Pemenang:</p>
+                        <p className="text-2xl font-bold text-cyan-400">{modalContent.winner.nickname}</p>
+                        <p className="mt-2">Berhasil menebak kata:</p>
                         <p className="text-cyan-400 text-2xl font-bold my-2">{modalContent.word}</p>
                          {modalContent.definitions.length > 0 && modalContent.definitions[0] !== 'Definisi tidak ditemukan.' && (
                              <div className="mt-2 pt-2 border-t border-gray-700 text-left">
@@ -128,7 +124,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameState }) => {
                          )}
                     </>
                  )}
-                 <p className="text-xs text-gray-400 mt-4">Game baru akan dimulai secara otomatis...</p>
+                 <p className="text-xs text-gray-400 mt-4">Game baru akan dimulai dalam 10 detik...</p>
             </Modal>
         </>
     );

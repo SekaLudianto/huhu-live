@@ -79,9 +79,11 @@ const App: React.FC = () => {
     useEffect(() => {
         if (connectionState && connectionState !== prevConnectionStateRef.current) {
             setTopGifters([]);
+            setParticipants(new Set<string>());
             prevConnectionStateRef.current = connectionState;
         } else if (!isConnected) {
             setTopGifters([]);
+            setParticipants(new Set<string>());
             prevConnectionStateRef.current = null;
         }
     }, [isConnected, connectionState]);
@@ -117,7 +119,6 @@ const App: React.FC = () => {
 
     const handleNewGameStart = useCallback(() => {
         setFollowMeWinner(null);
-        setParticipants(new Set<string>());
     }, []);
 
     const addParticipant = useCallback((user: User, reason: 'follow' | 'gift' | 'comment') => {
@@ -334,6 +335,19 @@ const App: React.FC = () => {
         <div className="w-full h-screen md:min-h-screen flex items-center justify-center p-0 md:p-4 bg-gray-800">
             <div className="mx-auto bg-gray-800 md:rounded-2xl shadow-lg md:p-6 flex flex-col w-full h-full md:max-w-6xl md:h-auto md:max-h-[95vh] relative">
                 
+                <div 
+                    className={`fixed top-36 md:top-24 left-1/2 -translate-x-1/2 w-full max-w-sm sm:max-w-md px-4 z-50 transition-all duration-500 ease-in-out ${
+                        validationToast.show 
+                        ? 'opacity-100 translate-y-0' 
+                        : 'opacity-0 -translate-y-full pointer-events-none'
+                    }`}
+                >
+                    <div 
+                        className={`backdrop-blur-md border shadow-lg rounded-xl p-3 text-center text-sm ${validationToast.type === 'info' ? 'bg-cyan-600/80 border-cyan-500 text-white' : 'bg-red-600/80 border-red-500 text-white'}`}
+                        dangerouslySetInnerHTML={{ __html: validationToast.content }}
+                    />
+                </div>
+
                 <RankOverlay isOpen={isRankOverlayVisible} leaderboard={leaderboard} />
                 <SultanOverlay 
                     isOpen={!!sultanInfo} 

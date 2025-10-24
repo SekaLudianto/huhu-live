@@ -29,8 +29,6 @@ export interface WordleGameState {
         definitions: string[];
         examples: string[];
     };
-    isRestartEnabled: boolean;
-    autoRestartGame: () => void;
     bannedWords: Set<string>;
 }
 
@@ -103,11 +101,10 @@ export const useWordleGame = ({
     const [gameMessage, setGameMessage] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalContent, setModalContent] = useState({ title: '', word: '', winner: null as User | null, praise: '', definitions: [] as string[], examples: [] as string[] });
-    const [isRestartEnabled, setIsRestartEnabled] = useState(false);
     const [bannedWords, setBannedWords] = useState<Set<string>>(new Set());
 
     const timerRef = useRef<number | null>(null);
-    const restartButtonTimerRef = useRef<number | null>(null);
+    const restartTimeoutRef = useRef<number | null>(null);
     const guessedWordsRef = useRef(new Set<string>());
 
     const clearAllTimers = useCallback(() => {
@@ -115,9 +112,9 @@ export const useWordleGame = ({
             clearInterval(timerRef.current);
             timerRef.current = null;
         }
-        if (restartButtonTimerRef.current) {
-            clearTimeout(restartButtonTimerRef.current);
-            restartButtonTimerRef.current = null;
+        if (restartTimeoutRef.current) {
+            clearTimeout(restartTimeoutRef.current);
+            restartTimeoutRef.current = null;
         }
     }, []);
 
@@ -141,24 +138,7 @@ export const useWordleGame = ({
             examples
         });
         setIsModalOpen(true);
-        setIsRestartEnabled(false);
-        restartButtonTimerRef.current = window.setTimeout(() => {
-            setIsRestartEnabled(true);
-        }, 10000); // 10 second delay
-
     }, [solution]);
-
-    const endGame = useCallback((winner: User | null) => {
-        if (isGameOver) return;
-        clearAllTimers();
-        setIsGameOver(true);
-        setTimeLeft(0);
-        setGameMessage(winner ? `Pemenang: ${winner.nickname}` : 'Waktu habis! Menunggu game baru...');
-        if (winner) {
-            updateLeaderboard(winner);
-        }
-        showEndGameModal(winner);
-    }, [isGameOver, clearAllTimers, updateLeaderboard, showEndGameModal]);
 
     const startNewGame = useCallback((specificWord?: string) => {
         clearAllTimers();
@@ -166,7 +146,6 @@ export const useWordleGame = ({
         setIsGameOver(false);
         setIsLoading(true);
         setIsPreparing(true);
-        setIsRestartEnabled(false);
         setTimeLeft(null);
         setGameMessage('Mempersiapkan kata baru...');
         setGuesses([]);
@@ -198,21 +177,29 @@ export const useWordleGame = ({
 
     }, [clearAllTimers, onNewGameStart, bannedWords]);
 
+    const endGame = useCallback((winner: User | null) => {
+        if (isGameOver) return;
+        clearAllTimers();
+        setIsGameOver(true);
+        setTimeLeft(0);
+        setGameMessage(winner ? `Pemenang: ${winner.nickname}` : 'Waktu habis! Menunggu game baru...');
+        if (winner) {
+            updateLeaderboard(winner);
+        }
+        showEndGameModal(winner);
+
+        restartTimeoutRef.current = window.setTimeout(() => {
+            startNewGame();
+        }, RESTART_TIME * 1000);
+
+    }, [isGameOver, clearAllTimers, updateLeaderboard, showEndGameModal, startNewGame]);
+
     const skipWord = useCallback(() => {
         if (solution) {
             setBannedWords(prev => new Set(prev).add(solution));
         }
         startNewGame();
     }, [solution, startNewGame]);
-
-    const autoRestartGame = useCallback(() => {
-        if (!isRestartEnabled) return;
-        setIsModalOpen(false);
-        setGameMessage(`Game baru akan dimulai dalam ${RESTART_TIME} detik...`);
-        setTimeout(() => {
-            startNewGame();
-        }, RESTART_TIME * 1000);
-    }, [isRestartEnabled, startNewGame]);
 
     useEffect(() => {
         if (isConnected) {
@@ -291,7 +278,7 @@ export const useWordleGame = ({
         const comment = message.comment.trim();
         const guess = comment.toUpperCase();
 
-        if (comment.toLowerCase() === 'semangat ya!') {
+        if (comment.toLowerCase() === 'semangat') {
             addParticipant(message, 'comment');
             return;
         }
@@ -336,8 +323,6 @@ export const useWordleGame = ({
         gameMessage,
         isModalOpen,
         modalContent,
-        isRestartEnabled,
-        autoRestartGame,
         bannedWords,
     };
 
