@@ -15,9 +15,8 @@ import FollowMeOverlay from './components/FollowMeOverlay';
 import AdminPanel from './components/AdminPanel';
 import ParticipationReminderOverlay from './components/ParticipationReminderOverlay';
 import { User, LeaderboardEntry, ChatMessage, GiftMessage, SocialMessage, ConnectionState, TopGifterEntry } from './types';
-import { ChatIcon, GiftIcon, LeaderboardIcon, DiamondIcon } from './components/icons/TabIcons';
+import { GameIcon, ChatIcon, GiftIcon, LeaderboardIcon, DiamondIcon } from './components/icons/TabIcons';
 import { SpinnerIcon } from './components/icons/SpinnerIcon';
-import { AdminIcon } from './components/icons/AdminIcon';
 import { leaderboardService } from './services/firebaseService';
 
 const TARGET_USERNAME = 'achmadsyams';
@@ -39,7 +38,7 @@ const App: React.FC = () => {
     
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
     const [topGifters, setTopGifters] = useState<TopGifterEntry[]>([]);
-    const [activeTab, setActiveTab] = useState('chat');
+    const [activeTab, setActiveTab] = useState('game');
     const [isRankOverlayVisible, setIsRankOverlayVisible] = useState(false);
     const [sultanInfo, setSultanInfo] = useState<{ user: User; gift: GiftMessage } | null>(null);
     const [validationToast, setValidationToast] = useState<{ show: boolean, content: string, type: 'info' | 'error' }>({ show: false, content: '', type: 'info' });
@@ -288,6 +287,7 @@ const App: React.FC = () => {
     }, []);
 
     const mobileTabs = [
+        { name: 'game', label: 'Game', icon: <GameIcon /> },
         { name: 'chat', label: 'Obrolan', icon: <ChatIcon /> },
         { name: 'gift', label: 'Hadiah', icon: <GiftIcon /> },
         { name: 'leaderboard', label: 'Peringkat', icon: <LeaderboardIcon /> },
@@ -298,7 +298,7 @@ const App: React.FC = () => {
         return (
             <div className="w-full h-screen flex items-center justify-center p-4 bg-gray-900 text-gray-200">
                 <div className="w-full max-w-md mx-auto bg-gray-800 rounded-2xl shadow-lg p-6 space-y-6 text-center">
-                    <Header />
+                    <Header onAdminClick={() => setIsAdminPanelOpen(true)} />
                     <div className="flex flex-col items-center justify-center gap-4 py-8">
                         <SpinnerIcon className="w-12 h-12 text-cyan-400" />
                         <p className={`text-lg font-medium ${errorMessage ? 'text-red-500' : 'text-white'}`}>
@@ -312,6 +312,23 @@ const App: React.FC = () => {
             </div>
         );
     }
+
+    const renderMobileContent = () => {
+        switch (activeTab) {
+            case 'game':
+                return <WordleGame gameState={wordle.gameState} />;
+            case 'chat':
+                return <ChatBox latestMessage={latestChatMessage} />;
+            case 'gift':
+                return <GiftBox latestGift={latestGiftMessage} />;
+            case 'leaderboard':
+                return <Leaderboard leaderboard={leaderboard} />;
+            case 'top_gifter':
+                return <TopGifterBox topGifters={topGifters} />;
+            default:
+                return null;
+        }
+    };
 
     return (
         <div className="w-full h-screen md:min-h-screen flex items-center justify-center p-0 md:p-4 bg-gray-800">
@@ -338,7 +355,7 @@ const App: React.FC = () => {
                 {/* DESKTOP VIEW */}
                 <div className="hidden md:flex flex-col h-full">
                     <div className="flex-shrink-0 space-y-4">
-                        <Header />
+                        <Header onAdminClick={() => setIsAdminPanelOpen(true)} />
                         <Stats 
                           isConnected={isConnected} 
                           connectionState={connectionState} 
@@ -367,9 +384,9 @@ const App: React.FC = () => {
                 </div>
 
                 {/* MOBILE VIEW */}
-                <div className="md:hidden flex flex-col h-full overflow-hidden">
+                <div className="md:hidden flex flex-col h-full overflow-hidden bg-gray-800">
                     <div className="flex-shrink-0 p-2 space-y-2">
-                        <Header />
+                        <Header onAdminClick={() => setIsAdminPanelOpen(true)} />
                         <Stats 
                             isConnected={isConnected} 
                             connectionState={connectionState} 
@@ -378,39 +395,29 @@ const App: React.FC = () => {
                             latestLike={latestLikeMessage}
                             totalDiamonds={totalDiamonds}
                         />
+                         {activeTab === 'game' && <InfoMarquee />}
                     </div>
+                    
+                    <main className="flex-grow min-h-0">
+                        {renderMobileContent()}
+                    </main>
 
-                    <div className="flex-grow flex flex-col justify-center min-h-0 px-2">
-                        <InfoMarquee />
-                        <div className="flex-grow flex flex-col justify-center min-h-0 py-2">
-                            <WordleGame gameState={wordle.gameState} />
-                        </div>
-                    </div>
-
-                    <div className="flex-shrink-0 flex flex-col bg-gray-900/70 backdrop-blur-sm rounded-t-2xl shadow-[0_-5px_15px_-5px_rgba(0,0,0,0.3)] max-h-[40vh]">
-                        <div className="flex-grow overflow-hidden">
-                            {activeTab === 'chat' && <ChatBox latestMessage={latestChatMessage} />}
-                            {activeTab === 'gift' && <GiftBox latestGift={latestGiftMessage} />}
-                            {activeTab === 'leaderboard' && <Leaderboard leaderboard={leaderboard} />}
-                            {activeTab === 'top_gifter' && <TopGifterBox topGifters={topGifters} />}
-                        </div>
-                        <div className="flex-shrink-0 grid grid-cols-4 gap-1 p-1 border-t border-gray-700/50">
-                             {mobileTabs.map(tab => (
-                                <button
-                                    key={tab.name}
-                                    onClick={() => setActiveTab(tab.name)}
-                                    className={`flex flex-col items-center justify-center p-1.5 text-xs rounded-md transition-colors duration-200 ${
-                                        activeTab === tab.name
-                                            ? 'bg-cyan-600 text-white'
-                                            : 'text-gray-300 hover:bg-gray-700'
-                                    }`}
-                                >
-                                    <span className="w-5 h-5 mb-0.5">{tab.icon}</span>
-                                    <span className="truncate">{tab.label}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                    <footer className="flex-shrink-0 grid grid-cols-5 gap-1 p-1 border-t border-gray-700 bg-gray-900/80 backdrop-blur-sm">
+                         {mobileTabs.map(tab => (
+                            <button
+                                key={tab.name}
+                                onClick={() => setActiveTab(tab.name)}
+                                className={`flex flex-col items-center justify-center p-1.5 text-xs rounded-md transition-colors duration-200 ${
+                                    activeTab === tab.name
+                                        ? 'bg-cyan-600 text-white'
+                                        : 'text-gray-300 hover:bg-gray-700'
+                                }`}
+                            >
+                                <span className="w-5 h-5 mb-0.5">{tab.icon}</span>
+                                <span className="truncate">{tab.label}</span>
+                            </button>
+                        ))}
+                    </footer>
                 </div>
             </div>
         </div>
