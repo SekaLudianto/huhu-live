@@ -7,7 +7,6 @@ import { WordleGameState } from '../hooks/useWordleGame';
 
 interface WordleGameProps {
     gameState: WordleGameState;
-    // Actions are no longer passed as direct props, they are handled by the hook
 }
 
 const WordleGame: React.FC<WordleGameProps> = ({ gameState }) => {
@@ -18,6 +17,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameState }) => {
         isLoading,
         timeLeft,
         isGameOver,
+        isPaused,
         gameMessage,
         isModalOpen,
         modalContent,
@@ -38,7 +38,8 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameState }) => {
                         Bersiap...
                     </div>
                 ) : timeLeft !== null ? (
-                    <div className={`text-center text-base md:text-lg font-bold mb-1 h-[28px] flex items-center justify-center ${timeLeft <= 30 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+                    <div className={`text-center text-base md:text-lg font-bold mb-1 h-[28px] flex items-center justify-center ${timeLeft <= 30 && !isPaused ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+                        {isPaused && <span className="mr-2 px-2 py-0.5 bg-yellow-500 text-white text-sm rounded">DIJEDA</span>}
                         {formatTime(timeLeft)}
                     </div>
                 ) : (
@@ -83,7 +84,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameState }) => {
                         )}
                         <img src={modalContent.winner.profilePictureUrl} alt={modalContent.winner.nickname} className="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-cyan-400"/>
                         <p className="text-sm text-gray-200">Pemenang:</p>
-                        <p className="text-2xl font-bold text-cyan-400">{modalContent.winner.nickname}</p>
+                        <p className="text-2xl font-bold text-gray-900 dark:text-white">{modalContent.winner.nickname}</p>
                         <p className="mt-2">Berhasil menebak kata:</p>
                         <p className="text-cyan-400 text-2xl font-bold my-2">{modalContent.word}</p>
                          {modalContent.definitions.length > 0 && modalContent.definitions[0] !== 'Definisi tidak ditemukan.' && (

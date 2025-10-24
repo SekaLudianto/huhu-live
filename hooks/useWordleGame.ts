@@ -6,6 +6,7 @@ const WORD_LENGTH = 5;
 const TIMER_DURATION = 900; // 15 menit dalam detik
 const PREPARE_TIME = 5; // 5 seconds
 const RESTART_TIME = 10; // 10 seconds
+const SKIP_NOTICE_DURATION = 5000; // 5 seconds
 
 const praisePhrases = [
     "Kerja bagus!", "Luar biasa!", "Tebakan jitu!", "Hebat sekali!",
@@ -19,6 +20,7 @@ export interface WordleGameState {
     isLoading: boolean;
     timeLeft: number | null;
     isGameOver: boolean;
+    isPaused: boolean;
     gameMessage: string;
     isModalOpen: boolean;
     modalContent: {
@@ -30,12 +32,14 @@ export interface WordleGameState {
         examples: string[];
     };
     bannedWords: Set<string>;
+    skippedWordInfo: { word: string; timestamp: number } | null;
 }
 
 export interface WordleGameActions {
     startNewGame: (word?: string) => void;
     revealWord: () => void;
     skipWord: () => void;
+    togglePause: () => void;
 }
 
 interface UseWordleGameProps {
@@ -98,14 +102,17 @@ export const useWordleGame = ({
     const [isPreparing, setIsPreparing] = useState(true);
     const [isLoading, setIsLoading] = useState(true);
     const [timeLeft, setTimeLeft] = useState<number | null>(null);
+    const [isPaused, setIsPaused] = useState(false);
     const [gameMessage, setGameMessage] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalContent, setModalContent] = useState({ title: '', word: '', winner: null as User | null, praise: '', definitions: [] as string[], examples: [] as string[] });
     const [bannedWords, setBannedWords] = useState<Set<string>>(new Set());
+    const [skippedWordInfo, setSkippedWordInfo] = useState<{ word: string; timestamp: number } | null>(null);
 
     const timerRef = useRef<number | null>(null);
     const restartTimeoutRef = useRef<number | null>(null);
     const guessedWordsRef = useRef(new Set<string>());
+    const originalGameMessageRef = useRef('');
 
     const clearAllTimers = useCallback(() => {
         if (timerRef.current) {
@@ -124,7 +131,6 @@ export const useWordleGame = ({
         const examples = wordDef ? wordDef.contoh : [];
         const randomPraise = winner ? praisePhrases[Math.floor(Math.random() * praisePhrases.length)] : '';
         
-        // Truncate long definition
         if (definitions[0] && definitions[0].length > 150) {
             definitions[0] = definitions[0].substring(0, 150) + '...';
         }
@@ -143,9 +149,11 @@ export const useWordleGame = ({
     const startNewGame = useCallback((specificWord?: string) => {
         clearAllTimers();
         setIsModalOpen(false);
+        setSkippedWordInfo(null);
         setIsGameOver(false);
         setIsLoading(true);
         setIsPreparing(true);
+        setIsPaused(false);
         setTimeLeft(null);
         setGameMessage('Mempersiapkan kata baru...');
         setGuesses([]);
@@ -169,7 +177,9 @@ export const useWordleGame = ({
                 setIsLoading(false);
                 setIsPreparing(false);
                 setTimeLeft(TIMER_DURATION);
-                setGameMessage(`Kata baru: ${WORD_LENGTH} huruf. Semangat!`);
+                const msg = `Kata baru: ${WORD_LENGTH} huruf. Semangat!`;
+                setGameMessage(msg);
+                originalGameMessageRef.current = msg;
             } else {
                 setGameMessage('Gagal mengambil kata baru. Coba lagi.');
             }
@@ -197,9 +207,30 @@ export const useWordleGame = ({
     const skipWord = useCallback(() => {
         if (solution) {
             setBannedWords(prev => new Set(prev).add(solution));
+            setSkippedWordInfo({ word: solution, timestamp: Date.now() });
+            clearAllTimers();
+            setIsGameOver(true); // Stop current game
+            setGameMessage(`Kata '${solution}' dilewati karena terfilter.`);
+
+            restartTimeoutRef.current = window.setTimeout(() => {
+                startNewGame();
+            }, SKIP_NOTICE_DURATION);
         }
-        startNewGame();
-    }, [solution, startNewGame]);
+    }, [solution, startNewGame, clearAllTimers]);
+
+    const togglePause = useCallback(() => {
+        if (isGameOver || isPreparing) return;
+        setIsPaused(prev => {
+            const isNowPaused = !prev;
+            if (isNowPaused) {
+                originalGameMessageRef.current = gameMessage;
+                setGameMessage('Game Dijeda oleh Moderator.');
+            } else {
+                setGameMessage(originalGameMessageRef.current);
+            }
+            return isNowPaused;
+        });
+    }, [isGameOver, isPreparing, gameMessage]);
 
     useEffect(() => {
         if (isConnected) {
@@ -211,7 +242,12 @@ export const useWordleGame = ({
     }, [isConnected, startNewGame, clearAllTimers]);
 
     useEffect(() => {
-        if (timeLeft === null || isGameOver) return;
+        if (timeLeft === null || isGameOver || isPaused) {
+             if (timerRef.current) {
+                clearInterval(timerRef.current);
+             }
+            return;
+        }
 
         if (timeLeft > 0) {
             timerRef.current = window.setInterval(() => {
@@ -226,10 +262,10 @@ export const useWordleGame = ({
                 clearInterval(timerRef.current);
             }
         };
-    }, [timeLeft, isGameOver, endGame]);
+    }, [timeLeft, isGameOver, isPaused, endGame]);
     
     const processGuess = useCallback((guess: string, user: User) => {
-        if (isGameOver || isPreparing || isLoading) return;
+        if (isGameOver || isPreparing || isLoading || isPaused) return;
 
         guess = guess.toUpperCase();
 
@@ -242,7 +278,6 @@ export const useWordleGame = ({
         }
 
         if (!wordService.isValidWord(guess)) {
-            // Only show toast for the host for now to avoid spam
             if (user.uniqueId === 'ahmadsyams.jpg') {
                 showValidationToast(`<b>${user.nickname}</b>, kata '${guess}' tidak ada di kamus!`, 'error');
             }
@@ -272,7 +307,7 @@ export const useWordleGame = ({
             setRecentGuesses(prev => [newGuess, ...prev].slice(0, 3));
         }
 
-    }, [isGameOver, isPreparing, isLoading, solution, bestGuess, endGame, showValidationToast]);
+    }, [isGameOver, isPreparing, isLoading, isPaused, solution, bestGuess, endGame, showValidationToast]);
 
     const processChatMessage = useCallback((message: ChatMessage) => {
         const comment = message.comment.trim();
@@ -286,7 +321,6 @@ export const useWordleGame = ({
         if (participants.has(message.uniqueId)) {
             processGuess(comment, message);
         } else {
-            // Check if it's a guess attempt
             if (guess.length === WORD_LENGTH && /^[A-Z]+$/.test(guess)) {
                 showParticipationReminder(message);
             }
@@ -311,6 +345,7 @@ export const useWordleGame = ({
         startNewGame,
         revealWord,
         skipWord,
+        togglePause,
     };
     
     const gameState: WordleGameState = {
@@ -320,10 +355,12 @@ export const useWordleGame = ({
         isLoading,
         timeLeft,
         isGameOver,
+        isPaused,
         gameMessage,
         isModalOpen,
         modalContent,
         bannedWords,
+        skippedWordInfo,
     };
 
     return {

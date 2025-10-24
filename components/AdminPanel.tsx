@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
-import { WordleGameActions } from '../hooks/useWordleGame';
+import { WordleGameActions, WordleGameState } from '../hooks/useWordleGame';
 import { AdminIcon } from './icons/AdminIcon';
 
 interface AdminPanelProps {
     isOpen: boolean;
     onClose: () => void;
     actions: WordleGameActions;
+    isPaused: boolean;
     moderators: Set<string>;
     addModerator: (username: string) => void;
     removeModerator: (username: string) => void;
     bannedWords: Set<string>;
 }
 
-const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, actions, moderators, addModerator, removeModerator, bannedWords }) => {
+const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, actions, isPaused, moderators, addModerator, removeModerator, bannedWords }) => {
     const [nextWord, setNextWord] = useState('');
     const [newMod, setNewMod] = useState('');
     const [activeTab, setActiveTab] = useState('game');
@@ -37,6 +38,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, actions, moder
 
     const handleRevealWord = () => {
         actions.revealWord();
+        onClose();
+    };
+
+    const handleTogglePause = () => {
+        actions.togglePause();
         onClose();
     };
     
@@ -105,6 +111,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, actions, moder
                                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
                                 >
                                     Mulai Game Baru (Acak)
+                                </button>
+                                <button
+                                    onClick={handleTogglePause}
+                                    className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+                                >
+                                    {isPaused ? 'Lanjutkan Game' : 'Jeda Game'}
                                 </button>
                                 <button
                                     onClick={handleRevealWord}

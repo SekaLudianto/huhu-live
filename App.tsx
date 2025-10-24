@@ -14,6 +14,8 @@ import InfoMarquee from './components/InfoMarquee';
 import FollowMeOverlay from './components/FollowMeOverlay';
 import AdminPanel from './components/AdminPanel';
 import ParticipationReminderOverlay from './components/ParticipationReminderOverlay';
+import ModeratorMessageOverlay from './components/ModeratorMessageOverlay';
+import SkipNotification from './components/SkipNotification';
 import { User, LeaderboardEntry, ChatMessage, GiftMessage, SocialMessage, ConnectionState, TopGifterEntry } from './types';
 import { GameIcon, ChatIcon, GiftIcon, LeaderboardIcon, DiamondIcon } from './components/icons/TabIcons';
 import { SpinnerIcon } from './components/icons/SpinnerIcon';
@@ -48,12 +50,14 @@ const App: React.FC = () => {
     const [chatQueue, setChatQueue] = useState<ChatMessage[]>([]);
     const [participants, setParticipants] = useState(new Set<string>());
     const [reminderInfo, setReminderInfo] = useState<{ user: User | null; isOpen: boolean }>({ user: null, isOpen: false });
+    const [moderatorMessage, setModeratorMessage] = useState<{ message: string; user: User } | null>(null);
 
 
     const rankOverlayTimeoutRef = useRef<number | null>(null);
     const sultanTimeoutRef = useRef<number | null>(null);
     const validationTimeoutRef = useRef<number | null>(null);
     const reminderTimeoutRef = useRef<number | null>(null);
+    const modMessageTimeoutRef = useRef<number | null>(null);
     const lastProcessedGiftRef = useRef<GiftMessage | null>(null);
     const lastProcessedSocialRef = useRef<SocialMessage | null>(null);
     const prevConnectionStateRef = useRef<ConnectionState | null>(null);
@@ -169,6 +173,16 @@ const App: React.FC = () => {
             
             // Moderator Commands
             if (isModerator) {
+                if (comment.startsWith('!msg ')) {
+                    const msg = messageToProcess.comment.substring(5).trim();
+                    if (msg) {
+                        if (modMessageTimeoutRef.current) clearTimeout(modMessageTimeoutRef.current);
+                        setModeratorMessage({ message: msg, user: messageToProcess });
+                        modMessageTimeoutRef.current = window.setTimeout(() => setModeratorMessage(null), 7000);
+                    }
+                    setChatQueue(prev => prev.slice(1));
+                    return;
+                }
                 if (comment === '!stop') {
                     wordle.actions.revealWord();
                     setChatQueue(prev => prev.slice(1));
@@ -176,6 +190,11 @@ const App: React.FC = () => {
                 }
                 if (comment === '!skip') {
                     wordle.actions.skipWord();
+                    setChatQueue(prev => prev.slice(1));
+                    return;
+                }
+                if (comment === '!pause' || comment === '!play') {
+                    wordle.actions.togglePause();
                     setChatQueue(prev => prev.slice(1));
                     return;
                 }
@@ -284,6 +303,7 @@ const App: React.FC = () => {
             if (sultanTimeoutRef.current) clearTimeout(sultanTimeoutRef.current);
             if (validationTimeoutRef.current) clearTimeout(validationTimeoutRef.current);
             if (reminderTimeoutRef.current) clearTimeout(reminderTimeoutRef.current);
+            if (modMessageTimeoutRef.current) clearTimeout(modMessageTimeoutRef.current);
         };
     }, []);
 
@@ -356,10 +376,13 @@ const App: React.FC = () => {
                 />
                  <FollowMeOverlay winner={followMeWinner} />
                  <ParticipationReminderOverlay isOpen={reminderInfo.isOpen} user={reminderInfo.user} />
+                 <ModeratorMessageOverlay data={moderatorMessage} />
+                 <SkipNotification word={wordle.gameState.skippedWordInfo?.word || null} timestamp={wordle.gameState.skippedWordInfo?.timestamp || 0} />
                  <AdminPanel 
                     isOpen={isAdminPanelOpen} 
                     onClose={() => setIsAdminPanelOpen(false)}
                     actions={wordle.actions}
+                    isPaused={wordle.gameState.isPaused}
                     moderators={moderators}
                     addModerator={addModerator}
                     removeModerator={removeModerator}
