@@ -10,11 +10,11 @@ import Leaderboard from './components/Leaderboard';
 import TopGifterBox from './components/TopGifterBox';
 import RankOverlay from './components/RankOverlay';
 import SultanOverlay from './components/SultanOverlay';
-import InfoMarquee from './components/InfoMarquee';
 import FollowMeOverlay from './components/FollowMeOverlay';
 import AdminPanel from './components/AdminPanel';
 import ParticipationReminderOverlay from './components/ParticipationReminderOverlay';
 import RankInfoOverlay from './components/RankInfoOverlay';
+import BroadcastMessageOverlay from './components/BroadcastMessageOverlay';
 import { User, LeaderboardEntry, ChatMessage, GiftMessage, SocialMessage, ConnectionState, TopGifterEntry } from './types';
 import { GameIcon, LeaderboardIcon, ChatIcon, GiftIcon, StatsIcon, DiamondIcon } from './components/icons/TabIcons';
 import { SpinnerIcon } from './components/icons/SpinnerIcon';
@@ -51,6 +51,7 @@ const App: React.FC = () => {
     const [chatQueue, setChatQueue] = useState<ChatMessage[]>([]);
     const [reminderInfo, setReminderInfo] = useState<{ user: User | null; isOpen: boolean }>({ user: null, isOpen: false });
     const [rankInfo, setRankInfo] = useState<{ user: User; wins: number; rank: number; isOpen: boolean } | null>(null);
+    const [broadcastInfo, setBroadcastInfo] = useState<{ user: User; message: string; isOpen: boolean } | null>(null);
 
 
     const rankOverlayTimeoutRef = useRef<number | null>(null);
@@ -58,6 +59,7 @@ const App: React.FC = () => {
     const validationTimeoutRef = useRef<number | null>(null);
     const reminderTimeoutRef = useRef<number | null>(null);
     const rankInfoTimeoutRef = useRef<number | null>(null);
+    const broadcastTimeoutRef = useRef<number | null>(null);
     const lastProcessedGiftRef = useRef<GiftMessage | null>(null);
     const lastProcessedSocialRef = useRef<SocialMessage | null>(null);
     const prevConnectionStateRef = useRef<ConnectionState | null>(null);
@@ -145,10 +147,21 @@ const App: React.FC = () => {
             const messagesToProcess = chatQueue.slice(0, batchSize);
     
             messagesToProcess.forEach(messageToProcess => {
-                const comment = messageToProcess.comment.trim().toLowerCase();
+                const comment = messageToProcess.comment.trim();
                 const isModerator = moderators.has(messageToProcess.uniqueId.toLowerCase());
                 
                 if (isModerator) {
+                     if (comment.toLowerCase().startsWith('!pesan ')) {
+                        const broadcastMessage = comment.substring(7).trim();
+                        if (broadcastMessage) {
+                            if (broadcastTimeoutRef.current) clearTimeout(broadcastTimeoutRef.current);
+                            setBroadcastInfo({ user: messageToProcess, message: broadcastMessage, isOpen: true });
+                            broadcastTimeoutRef.current = window.setTimeout(() => {
+                                setBroadcastInfo(prev => prev ? { ...prev, isOpen: false } : null);
+                            }, 15000); // Show for 15 seconds
+                        }
+                        return; 
+                    }
                     if (comment === '!stop') {
                         wordle.actions.revealWord();
                         return;
@@ -261,6 +274,7 @@ const App: React.FC = () => {
             if (validationTimeoutRef.current) clearTimeout(validationTimeoutRef.current);
             if (reminderTimeoutRef.current) clearTimeout(reminderTimeoutRef.current);
             if (rankInfoTimeoutRef.current) clearTimeout(rankInfoTimeoutRef.current);
+            if (broadcastTimeoutRef.current) clearTimeout(broadcastTimeoutRef.current);
         };
     }, []);
 
@@ -304,7 +318,12 @@ const App: React.FC = () => {
                 >
                     <AdminIcon className="w-5 h-5" />
                 </button>
-
+                
+                <BroadcastMessageOverlay 
+                    isOpen={!!broadcastInfo?.isOpen}
+                    user={broadcastInfo?.user || null}
+                    message={broadcastInfo?.message || null}
+                />
                 <RankOverlay isOpen={isRankOverlayVisible} leaderboard={leaderboard} />
                 <SultanOverlay 
                     isOpen={!!sultanInfo} 
@@ -346,7 +365,6 @@ const App: React.FC = () => {
                 
                 <div className="hidden md:grid grid-cols-[2fr_3fr] gap-6 mt-6 flex-grow min-h-0">
                     <div className="flex flex-col gap-2">
-                        <InfoMarquee />
                         <WordleGame gameState={wordle.gameState} topGifters={topGifters} validationToast={validationToast} />
                     </div>
                     <div className="flex flex-col gap-4">
@@ -362,11 +380,6 @@ const App: React.FC = () => {
                 </div>
 
                 <div className="md:hidden flex flex-col flex-grow min-h-0 mt-4">
-                    {activeTab === 'game' && (
-                        <div className="mb-2 flex-shrink-0">
-                            <InfoMarquee />
-                        </div>
-                    )}
                     <div className="flex-grow overflow-y-auto">
                         {activeTab === 'game' && <WordleGame gameState={wordle.gameState} topGifters={topGifters} validationToast={validationToast} />}
                         {activeTab === 'stats' && (

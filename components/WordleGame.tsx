@@ -4,7 +4,6 @@ import Modal from './Modal';
 import { User, TopGifterEntry } from '../types';
 import { SpinnerIcon } from './icons/SpinnerIcon';
 import { WordleGameState } from '../hooks/useWordleGame';
-import TopGifterMarquee from './TopGifterMarquee';
 import ValidationToast from './ValidationToast';
 
 interface WordleGameProps {
@@ -73,7 +72,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameState, topGifters, validati
                             <SpinnerIcon className="w-10 h-10" />
                         </div>
                     ) : (
-                        <div className="h-full overflow-y-auto pr-2 pb-10">
+                        <div className="h-full overflow-y-auto pr-2 pb-2">
                             <WordleGrid 
                                 bestGuess={bestGuess}
                                 recentGuesses={recentGuesses}
@@ -87,7 +86,6 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameState, topGifters, validati
                         {isPreparing ? 'Kata baru sedang disiapkan...' : gameMessage}
                     </div>
                 </div>
-                <TopGifterMarquee topGifters={topGifters} />
             </div>
 
             <Modal 
