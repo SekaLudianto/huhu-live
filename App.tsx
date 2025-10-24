@@ -21,7 +21,7 @@ import { SpinnerIcon } from './components/icons/SpinnerIcon';
 import { AdminIcon } from './components/icons/AdminIcon';
 import { leaderboardService } from './services/firebaseService';
 
-const TARGET_USERNAME = '@achmadsyams';
+const TARGET_USERNAME = 'achmadsyams';
 
 const App: React.FC = () => {
     const { 
