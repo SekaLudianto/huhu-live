@@ -14,7 +14,7 @@ const ParticipationReminderOverlay: React.FC<ParticipationReminderOverlayProps> 
 
   return (
     <div 
-        className={`fixed top-4 left-1/2 -translate-x-1/2 w-full max-w-sm px-4 z-40 transition-all duration-500 ease-in-out ${isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'}`}
+        className={`fixed top-20 left-1/2 -translate-x-1/2 w-full max-w-sm px-4 z-40 transition-all duration-500 ease-in-out ${isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'}`}
     >
       <div 
         className="bg-gray-900/70 backdrop-blur-md border border-blue-500/50 shadow-lg rounded-xl p-3 flex items-center space-x-3"

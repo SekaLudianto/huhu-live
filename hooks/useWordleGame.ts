@@ -277,8 +277,8 @@ export const useWordleGame = ({
 
         if (!wordService.isValidWord(guess)) {
             // Only show toast for the host for now to avoid spam
-            if (user.uniqueId === 'ahmadsyams.jpg') {
-                showValidationToast(`<b>${user.nickname}</b>, kata '${guess}' tidak ada di kamus!`, 'error');
+            if (moderators.has(user.uniqueId.toLowerCase())) {
+                showValidationToast(`<b>${user.nickname}</b>, kata '<b>${guess}</b>' tidak ada di kamus!`, 'error');
             }
             return;
         }
@@ -307,7 +307,7 @@ export const useWordleGame = ({
             setRecentGuesses(prev => [newGuess, ...prev].slice(0, 3));
         }
 
-    }, [isGameOver, isPreparing, isLoading, isAcceptingGuesses, solution, bestGuess, endGame, showValidationToast, userCooldowns]);
+    }, [isGameOver, isPreparing, isLoading, isAcceptingGuesses, solution, bestGuess, endGame, showValidationToast, userCooldowns, moderators]);
 
     const processChatMessage = useCallback((message: ChatMessage) => {
         const comment = message.comment.trim();

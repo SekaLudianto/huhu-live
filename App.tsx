@@ -15,6 +15,7 @@ import FollowMeOverlay from './components/FollowMeOverlay';
 import AdminPanel from './components/AdminPanel';
 import ParticipationReminderOverlay from './components/ParticipationReminderOverlay';
 import RankInfoOverlay from './components/RankInfoOverlay';
+import ValidationToast from './components/ValidationToast';
 import { User, LeaderboardEntry, ChatMessage, GiftMessage, SocialMessage, ConnectionState, TopGifterEntry } from './types';
 import { GameIcon, LeaderboardIcon, ChatIcon, GiftIcon, StatsIcon, DiamondIcon } from './components/icons/TabIcons';
 import { SpinnerIcon } from './components/icons/SpinnerIcon';
@@ -97,7 +98,7 @@ const App: React.FC = () => {
         setValidationToast({ show: true, content, type });
         validationTimeoutRef.current = window.setTimeout(() => {
             setValidationToast({ show: false, content: '', type: 'info' });
-        }, 3000);
+        }, 4000); // Increased duration to 4 seconds
     }, []);
 
     const showParticipationReminder = useCallback((user: User) => {
@@ -295,6 +296,12 @@ const App: React.FC = () => {
     return (
         <div className="w-full h-screen md:min-h-screen flex items-center justify-center p-2 md:p-4">
             <div className="mx-auto bg-gray-800 md:rounded-2xl shadow-lg p-2 md:p-6 flex flex-col w-full h-full md:max-w-6xl md:h-auto md:max-h-[95vh] relative">
+                
+                <ValidationToast 
+                    show={validationToast.show} 
+                    content={validationToast.content} 
+                    type={validationToast.type} 
+                />
                 
                 <RankOverlay isOpen={isRankOverlayVisible} leaderboard={leaderboard} />
                 <SultanOverlay 
