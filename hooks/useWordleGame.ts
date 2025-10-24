@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ChatMessage, GiftMessage, GuessData, TileStatus, User } from '../types';
+import { ChatMessage, GiftMessage, GuessData, TileStatus, User, SocialMessage } from '../types';
 import wordService from '../services/wordService';
+import { participationService } from '../services/participationService';
 
 const WORD_LENGTH = 5;
-const TIMER_DURATION = 900; // 15 menit dalam detik
+const TIMER_DURATION = 500; // Durasi game diubah menjadi 500 detik
 const PREPARE_TIME = 5; // 5 seconds
-const RESTART_TIME = 10; // 10 seconds
-const SKIP_NOTICE_DURATION = 5000; // 5 seconds
+const GAME_START_COOLDOWN = 3; // Cooldown 3 detik sebelum tebakan diterima
+// FIX: Define COOLDOWN_SECONDS to control user guess frequency.
+const COOLDOWN_SECONDS = 2; // Cooldown 2 detik per tebakan user
 
 const praisePhrases = [
     "Kerja bagus!", "Luar biasa!", "Tebakan jitu!", "Hebat sekali!",
@@ -20,7 +22,6 @@ export interface WordleGameState {
     isLoading: boolean;
     timeLeft: number | null;
     isGameOver: boolean;
-    isPaused: boolean;
     gameMessage: string;
     isModalOpen: boolean;
     modalContent: {
@@ -30,29 +31,26 @@ export interface WordleGameState {
         praise: string;
         definitions: string[];
         examples: string[];
-        originLanguage?: string;
+        bahasa?: string;
     };
+    autoRestartGame: () => void;
     bannedWords: Set<string>;
-    skippedWordInfo: { word: string; timestamp: number } | null;
 }
 
 export interface WordleGameActions {
     startNewGame: (word?: string) => void;
     revealWord: () => void;
     skipWord: () => void;
-    togglePause: () => void;
 }
 
 interface UseWordleGameProps {
     isConnected: boolean;
-    participants: Set<string>;
     moderators: Set<string>;
     updateLeaderboard: (winner: User) => void;
     showValidationToast: (content: string, type?: 'info' | 'error') => void;
     showParticipationReminder: (user: User) => void;
     onInstantWin: (user: User) => void;
     onNewGameStart: () => void;
-    addParticipant: (user: User, reason: 'follow' | 'gift' | 'comment') => void;
 }
 
 const calculateStatuses = (guess: string, solution: string): TileStatus[] => {
@@ -88,14 +86,12 @@ const calculateStatuses = (guess: string, solution: string): TileStatus[] => {
 
 export const useWordleGame = ({
     isConnected,
-    participants,
     moderators,
     updateLeaderboard,
     showValidationToast,
     showParticipationReminder,
     onInstantWin,
     onNewGameStart,
-    addParticipant,
 }: UseWordleGameProps) => {
     const [solution, setSolution] = useState('');
     const [guesses, setGuesses] = useState<GuessData[]>([]);
@@ -105,40 +101,51 @@ export const useWordleGame = ({
     const [isPreparing, setIsPreparing] = useState(true);
     const [isLoading, setIsLoading] = useState(true);
     const [timeLeft, setTimeLeft] = useState<number | null>(null);
-    const [isPaused, setIsPaused] = useState(false);
     const [gameMessage, setGameMessage] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalContent, setModalContent] = useState({ title: '', word: '', winner: null as User | null, praise: '', definitions: [] as string[], examples: [] as string[], originLanguage: undefined as string | undefined });
+    const [modalContent, setModalContent] = useState({ title: '', word: '', winner: null as User | null, praise: '', definitions: [] as string[], examples: [] as string[], bahasa: undefined as string | undefined });
+    const [isAcceptingGuesses, setIsAcceptingGuesses] = useState(false);
     const [bannedWords, setBannedWords] = useState<Set<string>>(new Set());
-    const [skippedWordInfo, setSkippedWordInfo] = useState<{ word: string; timestamp: number } | null>(null);
+    const [userCooldowns, setUserCooldowns] = useState(new Map<string, number>());
+    const [participants, setParticipants] = useState(() => participationService.getParticipants());
+
 
     const timerRef = useRef<number | null>(null);
-    const restartTimeoutRef = useRef<number | null>(null);
     const guessedWordsRef = useRef(new Set<string>());
-    const originalGameMessageRef = useRef('');
+
+    const addParticipant = useCallback((user: User, reason: 'follow' | 'gift' | 'comment') => {
+        if (participants.has(user.uniqueId)) {
+            return;
+        }
+
+        participationService.addParticipant(user.uniqueId);
+        setParticipants(prev => new Set(prev).add(user.uniqueId));
+
+        let toastContent = '';
+        if (reason === 'follow') {
+            toastContent = `<b>${user.nickname}</b>, terima kasih sudah follow! Kamu sekarang bisa menebak.`;
+        } else if (reason === 'gift') {
+            toastContent = `<b>${user.nickname}</b>, makasih giftnya! Kamu sekarang bisa menebak.`;
+        } else if (reason === 'comment') {
+            toastContent = `Makasih <b>${user.nickname}</b> atas semangatnya! Kamu sekarang bisa ikut menebak.`;
+        }
+        showValidationToast(toastContent, 'info');
+    }, [participants, showValidationToast]);
+
 
     const clearAllTimers = useCallback(() => {
         if (timerRef.current) {
             clearInterval(timerRef.current);
             timerRef.current = null;
         }
-        if (restartTimeoutRef.current) {
-            clearTimeout(restartTimeoutRef.current);
-            restartTimeoutRef.current = null;
-        }
     }, []);
 
     const showEndGameModal = useCallback((winner: User | null) => {
         const wordDef = wordService.getWordDefinition(solution);
-        let definitions = wordDef ? [...wordDef.submakna] : ['Definisi tidak ditemukan.'];
-        const examples = wordDef ? wordDef.contoh : [];
-        const originLanguage = wordDef ? wordDef.bahasa : undefined;
+        let definitions = wordDef?.submakna.length ? [...wordDef.submakna] : ['Definisi tidak ditemukan.'];
+        const examples = wordDef?.contoh || [];
         const randomPraise = winner ? praisePhrases[Math.floor(Math.random() * praisePhrases.length)] : '';
         
-        if (definitions[0] && definitions[0].length > 150) {
-            definitions[0] = definitions[0].substring(0, 150) + '...';
-        }
-
         setModalContent({
             title: winner ? "Selamat!" : "Waktu Habis!",
             word: solution,
@@ -146,25 +153,39 @@ export const useWordleGame = ({
             praise: randomPraise,
             definitions,
             examples,
-            originLanguage
+            bahasa: wordDef?.bahasa
         });
         setIsModalOpen(true);
+
     }, [solution]);
+
+    const endGame = useCallback((winner: User | null) => {
+        if (isGameOver) return;
+        clearAllTimers();
+        setIsGameOver(true);
+        setIsAcceptingGuesses(false);
+        setTimeLeft(0);
+        setGameMessage(winner ? `Pemenang: ${winner.nickname}` : 'Waktu habis! Menunggu game baru...');
+        if (winner) {
+            updateLeaderboard(winner);
+        }
+        showEndGameModal(winner);
+    }, [isGameOver, clearAllTimers, updateLeaderboard, showEndGameModal]);
 
     const startNewGame = useCallback((specificWord?: string) => {
         clearAllTimers();
         setIsModalOpen(false);
-        setSkippedWordInfo(null);
         setIsGameOver(false);
         setIsLoading(true);
         setIsPreparing(true);
-        setIsPaused(false);
+        setIsAcceptingGuesses(false);
         setTimeLeft(null);
         setGameMessage('Mempersiapkan kata baru...');
         setGuesses([]);
         setBestGuess(null);
         setRecentGuesses([]);
         guessedWordsRef.current.clear();
+        setUserCooldowns(new Map());
         onNewGameStart();
         
         setTimeout(() => {
@@ -182,9 +203,13 @@ export const useWordleGame = ({
                 setIsLoading(false);
                 setIsPreparing(false);
                 setTimeLeft(TIMER_DURATION);
-                const msg = `Kata baru: ${WORD_LENGTH} huruf. Semangat!`;
-                setGameMessage(msg);
-                originalGameMessageRef.current = msg;
+                setGameMessage(`Game dimulai dalam ${GAME_START_COOLDOWN} detik...`);
+                
+                setTimeout(() => {
+                    setIsAcceptingGuesses(true);
+                    setGameMessage(`Kata baru: ${WORD_LENGTH} huruf. Semangat!`);
+                }, GAME_START_COOLDOWN * 1000);
+
             } else {
                 setGameMessage('Gagal mengambil kata baru. Coba lagi.');
             }
@@ -192,50 +217,17 @@ export const useWordleGame = ({
 
     }, [clearAllTimers, onNewGameStart, bannedWords]);
 
-    const endGame = useCallback((winner: User | null) => {
-        if (isGameOver) return;
-        clearAllTimers();
-        setIsGameOver(true);
-        setTimeLeft(0);
-        setGameMessage(winner ? `Pemenang: ${winner.nickname}` : 'Waktu habis! Menunggu game baru...');
-        if (winner) {
-            updateLeaderboard(winner);
-        }
-        showEndGameModal(winner);
-
-        restartTimeoutRef.current = window.setTimeout(() => {
-            startNewGame();
-        }, RESTART_TIME * 1000);
-
-    }, [isGameOver, clearAllTimers, updateLeaderboard, showEndGameModal, startNewGame]);
-
     const skipWord = useCallback(() => {
         if (solution) {
             setBannedWords(prev => new Set(prev).add(solution));
-            setSkippedWordInfo({ word: solution, timestamp: Date.now() });
-            clearAllTimers();
-            setIsGameOver(true); // Stop current game
-            setGameMessage(`Kata '${solution}' dilewati karena terfilter.`);
-
-            restartTimeoutRef.current = window.setTimeout(() => {
-                startNewGame();
-            }, SKIP_NOTICE_DURATION);
         }
-    }, [solution, startNewGame, clearAllTimers]);
+        startNewGame();
+    }, [solution, startNewGame]);
 
-    const togglePause = useCallback(() => {
-        if (isGameOver || isPreparing) return;
-        setIsPaused(prev => {
-            const isNowPaused = !prev;
-            if (isNowPaused) {
-                originalGameMessageRef.current = gameMessage;
-                setGameMessage('Game Dijeda oleh Moderator.');
-            } else {
-                setGameMessage(originalGameMessageRef.current);
-            }
-            return isNowPaused;
-        });
-    }, [isGameOver, isPreparing, gameMessage]);
+    const autoRestartGame = useCallback(() => {
+        setIsModalOpen(false);
+        startNewGame();
+    }, [startNewGame]);
 
     useEffect(() => {
         if (isConnected) {
@@ -247,12 +239,7 @@ export const useWordleGame = ({
     }, [isConnected, startNewGame, clearAllTimers]);
 
     useEffect(() => {
-        if (timeLeft === null || isGameOver || isPaused) {
-             if (timerRef.current) {
-                clearInterval(timerRef.current);
-             }
-            return;
-        }
+        if (timeLeft === null || isGameOver) return;
 
         if (timeLeft > 0) {
             timerRef.current = window.setInterval(() => {
@@ -267,13 +254,15 @@ export const useWordleGame = ({
                 clearInterval(timerRef.current);
             }
         };
-    }, [timeLeft, isGameOver, isPaused, endGame]);
+    }, [timeLeft, isGameOver, endGame]);
     
     const processGuess = useCallback((guess: string, user: User) => {
-        if (isGameOver || isPreparing || isLoading || isPaused) return;
+        if (isGameOver || isPreparing || isLoading || !isAcceptingGuesses) return;
 
-        if (guess.startsWith('!')) {
-            return;
+        const now = Date.now();
+        const lastGuessTime = userCooldowns.get(user.uniqueId);
+        if (lastGuessTime && (now - lastGuessTime) < COOLDOWN_SECONDS * 1000) {
+            return; // Cooldown aktif, abaikan tebakan
         }
 
         guess = guess.toUpperCase();
@@ -287,11 +276,15 @@ export const useWordleGame = ({
         }
 
         if (!wordService.isValidWord(guess)) {
-            showValidationToast(`<b>${user.nickname}</b>, kata '${guess}' tidak ada dalam kamus sistem.`, 'error');
+            // Only show toast for the host for now to avoid spam
+            if (user.uniqueId === 'ahmadsyams.jpg') {
+                showValidationToast(`<b>${user.nickname}</b>, kata '${guess}' tidak ada di kamus!`, 'error');
+            }
             return;
         }
 
         guessedWordsRef.current.add(`${user.uniqueId}-${guess}`);
+        setUserCooldowns(prev => new Map(prev).set(user.uniqueId, now));
 
         const statuses = calculateStatuses(guess, solution);
         const newGuess: GuessData = { guess, user, statuses };
@@ -314,7 +307,7 @@ export const useWordleGame = ({
             setRecentGuesses(prev => [newGuess, ...prev].slice(0, 3));
         }
 
-    }, [isGameOver, isPreparing, isLoading, isPaused, solution, bestGuess, endGame, showValidationToast]);
+    }, [isGameOver, isPreparing, isLoading, isAcceptingGuesses, solution, bestGuess, endGame, showValidationToast, userCooldowns]);
 
     const processChatMessage = useCallback((message: ChatMessage) => {
         const comment = message.comment.trim();
@@ -329,6 +322,7 @@ export const useWordleGame = ({
         if (participants.has(message.uniqueId) || isModerator) {
             processGuess(comment, message);
         } else {
+            // Check if it's a guess attempt
             if (guess.length === WORD_LENGTH && /^[A-Z]+$/.test(guess)) {
                 showParticipationReminder(message);
             }
@@ -344,6 +338,12 @@ export const useWordleGame = ({
             endGame(message);
         }
     }, [endGame, addParticipant, onInstantWin]);
+
+    const processSocialMessage = useCallback((message: SocialMessage) => {
+        if (message.displayType.includes('follow')) {
+            addParticipant(message, 'follow');
+        }
+    }, [addParticipant]);
     
     const revealWord = useCallback(() => {
         endGame(null);
@@ -353,7 +353,6 @@ export const useWordleGame = ({
         startNewGame,
         revealWord,
         skipWord,
-        togglePause,
     };
     
     const gameState: WordleGameState = {
@@ -363,12 +362,11 @@ export const useWordleGame = ({
         isLoading,
         timeLeft,
         isGameOver,
-        isPaused,
         gameMessage,
         isModalOpen,
         modalContent,
+        autoRestartGame,
         bannedWords,
-        skippedWordInfo,
     };
 
     return {
@@ -376,5 +374,6 @@ export const useWordleGame = ({
         actions,
         processChatMessage,
         processGiftMessage,
+        processSocialMessage,
     };
 };

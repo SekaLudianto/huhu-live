@@ -37,35 +37,24 @@ const Stats: React.FC<StatsProps> = ({ isConnected, connectionState, errorMessag
     const formatNumber = (num: number) => new Intl.NumberFormat('id-ID').format(num);
 
     return (
-        <div className="bg-gray-700/50 rounded-lg p-2 flex justify-between items-center text-xs md:text-sm text-gray-300">
-            <div className="flex-shrink-0">
-                {isConnected && connectionState ? (
-                    <span className="flex items-center gap-1.5 font-medium text-green-400">
-                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                        Terhubung
-                    </span>
-                ) : errorMessage ? (
-                    <span className="flex items-center gap-1.5 font-medium text-yellow-400">
-                         <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
-                        {errorMessage.split('.')[0]}
-                    </span>
-                ) : (
-                    <span className="flex items-center gap-1.5 font-medium text-gray-400">
-                         <span className="w-2 h-2 rounded-full bg-gray-500"></span>
-                        Menyambung...
-                    </span>
-                )}
+        <div className="grid grid-cols-1 gap-4">
+            <div className="bg-gray-700/50 rounded-lg p-4 min-h-[100px] flex flex-col justify-center items-center">
+                <h3 className="font-semibold text-white mb-2 text-center">Status Koneksi</h3>
+                <pre className="text-xs text-center whitespace-pre-wrap">
+                    {isConnected && connectionState
+                        ? <span className="text-green-400">Terhubung ke Room ID {connectionState.roomId}</span>
+                        : errorMessage
+                        ? <span className="text-red-400">{errorMessage}</span>
+                        : <span className="text-gray-400">Belum terhubung.</span>}
+                </pre>
             </div>
-
-            <div className="flex items-center gap-3 md:gap-5 whitespace-nowrap">
-                <span>Penonton: <b className="font-semibold text-white">{formatNumber(viewerCount)}</b></span>
-                <span>Suka: <b className="font-semibold text-white">{formatNumber(likeCount)}</b></span>
-                <span className="flex items-center gap-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-yellow-400">
-                      <path d="M10.868 2.884c.321-.772 1.415-.772 1.736 0l1.83 4.401 4.753.39c.845.07 1.178 1.06.557 1.658l-3.448 3.36.815 4.732c.15.868-.726 1.536-1.48.995L10 15.122l-4.224 2.22c-.754.542-1.63-.127-1.48-.995l.815-4.732-3.448-3.36c-.621-.598-.288-1.588.557-1.658l4.753-.39 1.83-4.401z" />
-                    </svg>
-                    <b className="font-semibold text-white">{formatNumber(totalDiamonds)}</b>
-                </span>
+            <div className="bg-gray-700/50 rounded-lg p-4 min-h-[100px] flex flex-col justify-center items-center">
+                <h3 className="font-semibold text-white mb-2 text-center">Statistik Room</h3>
+                <div className="text-sm text-gray-300 text-center space-x-4">
+                    <span>Penonton: <b className="text-white">{formatNumber(viewerCount)}</b></span>
+                    <span>Suka: <b className="text-white">{formatNumber(likeCount)}</b></span>
+                    <span>Diamond: <b className="text-white">{formatNumber(totalDiamonds)}</b></span>
+                </div>
             </div>
         </div>
     );

@@ -3,6 +3,7 @@ import { Kamus } from '../types';
 class WordService {
   private words: Kamus = {};
   private wordsByLength: Map<number, string[]> = new Map();
+  private lastWord: string | null = null;
 
   async initialize(): Promise<void> {
     try {
@@ -33,8 +34,19 @@ class WordService {
       console.error(`No words of length ${length} found.`);
       return 'GAGAL';
     }
-    const randomIndex = Math.floor(Math.random() * wordList.length);
-    return wordList[randomIndex].toUpperCase();
+
+    if (wordList.length === 1) {
+      return wordList[0].toUpperCase();
+    }
+
+    let newWord: string;
+    do {
+      const randomIndex = Math.floor(Math.random() * wordList.length);
+      newWord = wordList[randomIndex].toUpperCase();
+    } while (newWord === this.lastWord);
+
+    this.lastWord = newWord;
+    return newWord;
   }
 
   isValidWord(word: string): boolean {

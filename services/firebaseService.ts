@@ -1,34 +1,10 @@
 import { LeaderboardEntry, User } from '../types';
 
-const COOKIE_NAME = 'katlaLeaderboard';
-
-// Fungsi bantuan untuk mengatur cookie
-function setCookie(name: string, value: string, days: number) {
-    let expires = "";
-    if (days) {
-        const date = new Date();
-        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-        expires = "; expires=" + date.toUTCString();
-    }
-    document.cookie = name + "=" + (value || "")  + expires + "; path=/; SameSite=Lax";
-}
-
-// Fungsi bantuan untuk mendapatkan cookie
-function getCookie(name: string): string | null {
-    const nameEQ = name + "=";
-    const ca = document.cookie.split(';');
-    for(let i = 0; i < ca.length; i++) {
-        let c = ca[i];
-        while (c.charAt(0) === ' ') c = c.substring(1, c.length);
-        if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
-    }
-    return null;
-}
-
+const STORAGE_KEY = 'katlaLeaderboard';
 
 const getLeaderboard = (): LeaderboardEntry[] => {
     try {
-        const leaderboardDataString = getCookie(COOKIE_NAME);
+        const leaderboardDataString = localStorage.getItem(STORAGE_KEY);
         if (leaderboardDataString) {
             const data = JSON.parse(leaderboardDataString);
             if(Array.isArray(data)) {
@@ -37,7 +13,7 @@ const getLeaderboard = (): LeaderboardEntry[] => {
         }
         return [];
     } catch (error) {
-        console.error("Error reading leaderboard cookie: ", error);
+        console.error("Error reading leaderboard from localStorage: ", error);
         return [];
     }
 };
@@ -62,17 +38,17 @@ const updateWinnerScore = (winner: User): LeaderboardEntry[] => {
 
         // Urutkan dan simpan
         const sortedLeaderboard = leaderboard.sort((a, b) => b.wins - a.wins);
-        setCookie(COOKIE_NAME, JSON.stringify(sortedLeaderboard), 365); // Simpan selama 1 tahun
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sortedLeaderboard));
         
         return sortedLeaderboard;
     } catch (error) {
-        console.error("Error updating winner score in cookie: ", error);
+        console.error("Error updating winner score in localStorage: ", error);
         return getLeaderboard(); // Kembalikan data yang ada jika terjadi galat
     }
 };
 
 const initialize = () => {
-    console.log("Leaderboard service initialized (Cookie-based).");
+    console.log("Leaderboard service initialized (localStorage-based).");
 };
 
 export const leaderboardService = {

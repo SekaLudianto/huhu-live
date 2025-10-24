@@ -25,8 +25,8 @@ const GiftBox: React.FC<GiftBoxProps> = ({ latestGift }) => {
     };
 
     return (
-        <div className="bg-gray-700/50 p-2 flex flex-col h-full">
-            <h3 className="text-lg font-bold text-center text-white mb-2 flex-shrink-0">Hadiah</h3>
+        <div className="bg-gray-700/50 rounded-lg p-4 flex flex-col h-full">
+            <h3 className="text-lg font-bold text-center text-white mb-3">Hadiah</h3>
             <div className="flex-grow overflow-y-auto pr-2 space-y-2" ref={containerRef}>
                 {gifts.map((gift, index) => (
                     <div key={`${gift.giftId}-${index}`} className="bg-gray-800/50 p-2 rounded-lg flex items-start text-sm text-gray-200">
