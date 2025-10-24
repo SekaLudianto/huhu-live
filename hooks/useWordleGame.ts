@@ -45,6 +45,7 @@ export interface WordleGameActions {
 interface UseWordleGameProps {
     isConnected: boolean;
     participants: Set<string>;
+    moderators: Set<string>;
     updateLeaderboard: (winner: User) => void;
     showValidationToast: (content: string, type?: 'info' | 'error') => void;
     showParticipationReminder: (user: User) => void;
@@ -87,6 +88,7 @@ const calculateStatuses = (guess: string, solution: string): TileStatus[] => {
 export const useWordleGame = ({
     isConnected,
     participants,
+    moderators,
     updateLeaderboard,
     showValidationToast,
     showParticipationReminder,
@@ -278,9 +280,7 @@ export const useWordleGame = ({
         }
 
         if (!wordService.isValidWord(guess)) {
-            if (user.uniqueId === 'ahmadsyams.jpg') {
-                showValidationToast(`<b>${user.nickname}</b>, kata '${guess}' tidak ada di kamus!`, 'error');
-            }
+            showValidationToast(`<b>${user.nickname}</b>, kata '${guess}' tidak ada dalam kamus sistem.`, 'error');
             return;
         }
 
@@ -312,20 +312,21 @@ export const useWordleGame = ({
     const processChatMessage = useCallback((message: ChatMessage) => {
         const comment = message.comment.trim();
         const guess = comment.toUpperCase();
+        const isModerator = moderators.has(message.uniqueId.toLowerCase());
 
         if (comment.toLowerCase() === 'semangat') {
             addParticipant(message, 'comment');
             return;
         }
         
-        if (participants.has(message.uniqueId)) {
+        if (participants.has(message.uniqueId) || isModerator) {
             processGuess(comment, message);
         } else {
             if (guess.length === WORD_LENGTH && /^[A-Z]+$/.test(guess)) {
                 showParticipationReminder(message);
             }
         }
-    }, [processGuess, participants, addParticipant, showParticipationReminder]);
+    }, [processGuess, participants, moderators, addParticipant, showParticipationReminder]);
     
     const processGiftMessage = useCallback((message: GiftMessage) => {
         addParticipant(message, 'gift');

@@ -11,6 +11,7 @@ import TopGifterBox from './components/TopGifterBox';
 import RankOverlay from './components/RankOverlay';
 import SultanOverlay from './components/SultanOverlay';
 import InfoMarquee from './components/InfoMarquee';
+import TopGifterMarquee from './components/TopGifterMarquee';
 import FollowMeOverlay from './components/FollowMeOverlay';
 import AdminPanel from './components/AdminPanel';
 import ParticipationReminderOverlay from './components/ParticipationReminderOverlay';
@@ -19,9 +20,11 @@ import SkipNotification from './components/SkipNotification';
 import { User, LeaderboardEntry, ChatMessage, GiftMessage, SocialMessage, ConnectionState, TopGifterEntry } from './types';
 import { GameIcon, ChatIcon, GiftIcon, LeaderboardIcon, DiamondIcon } from './components/icons/TabIcons';
 import { SpinnerIcon } from './components/icons/SpinnerIcon';
-import { leaderboardService } from './services/firebaseService';
+import { leaderboardService } from './services/leaderboardService';
 
 const TARGET_USERNAME = 'achmadsyams';
+const OWNERS = new Set(['achmadsyams', 'ahmadsyams.jpg', 'kambing.gimang']);
+
 
 const App: React.FC = () => {
     const { 
@@ -51,6 +54,8 @@ const App: React.FC = () => {
     const [participants, setParticipants] = useState(new Set<string>());
     const [reminderInfo, setReminderInfo] = useState<{ user: User | null; isOpen: boolean }>({ user: null, isOpen: false });
     const [moderatorMessage, setModeratorMessage] = useState<{ message: string; user: User } | null>(null);
+    const [isModeratorMode, setIsModeratorMode] = useState(true);
+    const [publicCommandCooldown, setPublicCommandCooldown] = useState(false);
 
 
     const rankOverlayTimeoutRef = useRef<number | null>(null);
@@ -62,17 +67,30 @@ const App: React.FC = () => {
     const lastProcessedSocialRef = useRef<SocialMessage | null>(null);
     const prevConnectionStateRef = useRef<ConnectionState | null>(null);
     
-    const addModerator = (username: string) => {
-        setModerators(prev => new Set(prev).add(username.toLowerCase()));
-    };
-    
-    const removeModerator = (username: string) => {
+    const addModerator = useCallback((username: string) => {
+        const cleanUsername = username.toLowerCase();
         setModerators(prev => {
+            if (prev.has(cleanUsername)) return prev;
+            showValidationToast(`<b>@${cleanUsername}</b> telah ditambahkan sebagai moderator.`, 'info');
+            return new Set(prev).add(cleanUsername);
+        });
+    }, []);
+    
+    const removeModerator = useCallback((username: string) => {
+        const cleanUsername = username.toLowerCase();
+        if (cleanUsername === 'ahmadsyams.jpg') { // Protect host
+            showValidationToast(`Tidak dapat menghapus host dari daftar moderator.`, 'error');
+            return;
+        }
+        setModerators(prev => {
+            if (!prev.has(cleanUsername)) return prev;
             const newMods = new Set(prev);
-            newMods.delete(username.toLowerCase());
+            newMods.delete(cleanUsername);
+            showValidationToast(`<b>@${cleanUsername}</b> telah dihapus dari moderator.`, 'info');
             return newMods;
         });
-    };
+    }, []);
+
 
     useEffect(() => {
         leaderboardService.initialize();
@@ -150,6 +168,7 @@ const App: React.FC = () => {
     const wordle = useWordleGame({
         isConnected,
         participants,
+        moderators,
         updateLeaderboard,
         showValidationToast,
         showParticipationReminder,
@@ -157,50 +176,109 @@ const App: React.FC = () => {
         onNewGameStart: handleNewGameStart,
         addParticipant,
     });
+    
+     const processOwnerCommand = useCallback((message: ChatMessage): boolean => {
+        const comment = message.comment.trim().toLowerCase();
+        const parts = comment.split(' ');
+
+        if (parts.length < 2) return false;
+
+        const command = parts[0];
+        const username = parts[1].replace(/^@/, '');
+
+        if (command === '!addmod') {
+            addModerator(username);
+            return true;
+        }
+
+        if (command === '!delmod') {
+            removeModerator(username);
+            return true;
+        }
+
+        return false;
+    }, [addModerator, removeModerator]);
+    
+    const processModeratorCommand = useCallback((message: ChatMessage): boolean => {
+        const comment = message.comment.trim().toLowerCase();
+        if (comment.startsWith('!msg ')) {
+            const msg = message.comment.substring(5).trim();
+            if (msg) {
+                if (modMessageTimeoutRef.current) clearTimeout(modMessageTimeoutRef.current);
+                setModeratorMessage({ message: msg, user: message });
+                modMessageTimeoutRef.current = window.setTimeout(() => setModeratorMessage(null), 7000);
+            }
+            return true;
+        }
+        if (comment === '!start') {
+            wordle.actions.startNewGame();
+            return true;
+        }
+        if (comment === '!stop') {
+            wordle.actions.revealWord();
+            return true;
+        }
+        if (comment === '!skip') {
+            wordle.actions.skipWord();
+            return true;
+        }
+        if (comment === '!pause' || comment === '!play') {
+            wordle.actions.togglePause();
+            return true;
+        }
+        return false;
+    }, [wordle.actions]);
 
     useEffect(() => {
         if (latestChatMessage) {
-            setChatQueue(prev => [...prev, latestChatMessage]);
-        }
-    }, [latestChatMessage]);
-
-    useEffect(() => {
-        if (chatQueue.length > 0) {
-            const messageToProcess = chatQueue[0];
+            const uniqueId = latestChatMessage.uniqueId.toLowerCase();
+            const isOwner = OWNERS.has(uniqueId);
+            const isModerator = moderators.has(uniqueId);
+            const comment = latestChatMessage.comment.trim().toLowerCase();
+    
+            // 1. Process Owner commands (highest priority)
+            if (isOwner && processOwnerCommand(latestChatMessage)) {
+                return;
+            }
+    
+            // 2. Process Moderator commands (or owner acting as mod)
+            if ((isModerator || isOwner) && processModeratorCommand(latestChatMessage)) {
+                return;
+            }
             
-            const comment = messageToProcess.comment.trim().toLowerCase();
-            const isModerator = moderators.has(messageToProcess.uniqueId.toLowerCase());
-            
-            // Moderator Commands
-            if (isModerator) {
-                if (comment.startsWith('!msg ')) {
-                    const msg = messageToProcess.comment.substring(5).trim();
-                    if (msg) {
-                        if (modMessageTimeoutRef.current) clearTimeout(modMessageTimeoutRef.current);
-                        setModeratorMessage({ message: msg, user: messageToProcess });
-                        modMessageTimeoutRef.current = window.setTimeout(() => setModeratorMessage(null), 7000);
+            // 3. Process Public commands when moderator mode is OFF
+            if (!isModeratorMode) {
+                if (comment === '!start' || comment === '!skip') {
+                    if (publicCommandCooldown) {
+                        showValidationToast('Perintah publik sedang cooldown, coba lagi nanti.', 'error');
+                        return;
                     }
-                    setChatQueue(prev => prev.slice(1));
-                    return;
-                }
-                if (comment === '!stop') {
-                    wordle.actions.revealWord();
-                    setChatQueue(prev => prev.slice(1));
-                    return;
-                }
-                if (comment === '!skip') {
-                    wordle.actions.skipWord();
-                    setChatQueue(prev => prev.slice(1));
-                    return;
-                }
-                if (comment === '!pause' || comment === '!play') {
-                    wordle.actions.togglePause();
-                    setChatQueue(prev => prev.slice(1));
+                    if (comment === '!start') wordle.actions.startNewGame();
+                    if (comment === '!skip') wordle.actions.skipWord();
+
+                    setPublicCommandCooldown(true);
+                    setTimeout(() => setPublicCommandCooldown(false), 10000); // 10 second cooldown
                     return;
                 }
             }
+
+            // 4. If moderator/owner sends a non-command message, treat as guess immediately
+            if (isModerator || isOwner) {
+                wordle.processChatMessage(latestChatMessage);
+            } else {
+            // 5. Regular user, add to queue for processing
+                setChatQueue(prev => [...prev, latestChatMessage]);
+            }
+        }
+    }, [latestChatMessage, moderators, isModeratorMode, publicCommandCooldown, processModeratorCommand, processOwnerCommand, wordle.actions, showValidationToast]);
+
+    useEffect(() => {
+        // Sequential processing for non-moderators
+        if (chatQueue.length > 0) {
+            const messageToProcess = chatQueue[0];
+            const comment = messageToProcess.comment.trim().toLowerCase();
             
-            // General Commands
+            // General Commands (non-moderator)
             if (comment === '!rank') {
                 if (rankOverlayTimeoutRef.current) clearTimeout(rankOverlayTimeoutRef.current);
                 setIsRankOverlayVisible(true);
@@ -217,13 +295,13 @@ const App: React.FC = () => {
                     showValidationToast(`<b>${user.nickname}</b>, kamu belum pernah menang. Ayo tebak kata!`, 'info');
                 }
             } else {
-                // Process as guess or participant entry
+                // Process as guess or participant entry for non-mods
                 wordle.processChatMessage(messageToProcess);
             }
 
             setChatQueue(prev => prev.slice(1));
         }
-    }, [chatQueue, wordle, leaderboard, moderators, showValidationToast]);
+    }, [chatQueue, leaderboard, showValidationToast, wordle]);
 
     useEffect(() => {
         if (latestGiftMessage) {
@@ -337,9 +415,9 @@ const App: React.FC = () => {
     const renderMobileContent = () => {
         switch (activeTab) {
             case 'game':
-                return <WordleGame gameState={wordle.gameState} />;
+                return <WordleGame gameState={wordle.gameState} topGifters={topGifters} />;
             case 'chat':
-                return <ChatBox latestMessage={latestChatMessage} />;
+                return <ChatBox latestMessage={latestChatMessage} owners={OWNERS} moderators={moderators} />;
             case 'gift':
                 return <GiftBox latestGift={latestGiftMessage} />;
             case 'leaderboard':
@@ -387,6 +465,8 @@ const App: React.FC = () => {
                     addModerator={addModerator}
                     removeModerator={removeModerator}
                     bannedWords={wordle.gameState.bannedWords}
+                    isModeratorMode={isModeratorMode}
+                    setIsModeratorMode={setIsModeratorMode}
                  />
                 
                 {/* DESKTOP VIEW */}
@@ -405,7 +485,7 @@ const App: React.FC = () => {
                     <div className="grid grid-cols-[2fr_3fr] gap-6 mt-6 flex-grow min-h-0">
                         <div className="flex flex-col gap-2">
                             <InfoMarquee />
-                            <WordleGame gameState={wordle.gameState} />
+                            <WordleGame gameState={wordle.gameState} topGifters={topGifters} />
                         </div>
                         <div className="flex flex-col gap-4">
                             <div className="grid grid-cols-2 gap-4">
@@ -413,7 +493,7 @@ const App: React.FC = () => {
                                 <TopGifterBox topGifters={topGifters} />
                             </div>
                             <div className="flex-grow grid grid-cols-2 gap-4 min-h-0">
-                                <ChatBox latestMessage={latestChatMessage} />
+                                <ChatBox latestMessage={latestChatMessage} owners={OWNERS} moderators={moderators} />
                                 <GiftBox latestGift={latestGiftMessage} />
                             </div>
                         </div>

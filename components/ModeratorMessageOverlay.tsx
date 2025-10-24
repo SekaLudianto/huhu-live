@@ -27,6 +27,19 @@ const ModeratorMessageOverlay: React.FC<ModeratorMessageOverlayProps> = ({ data 
 
     const { message, user } = data;
 
+    const getFontSizeClass = (text: string) => {
+        const len = text.length;
+        if (len > 60) {
+            return 'text-lg md:text-2xl';
+        }
+        if (len > 30) {
+            return 'text-xl md:text-3xl';
+        }
+        return 'text-2xl md:text-4xl';
+    };
+    
+    const fontSizeClass = getFontSizeClass(message);
+
     return (
         <div 
             className={`fixed inset-0 flex items-center justify-center p-4 z-50 transition-opacity duration-500 ease-in-out ${isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
@@ -37,7 +50,7 @@ const ModeratorMessageOverlay: React.FC<ModeratorMessageOverlayProps> = ({ data 
                     <span className="text-white font-semibold text-sm">{user.nickname}</span>
                 </div>
                 <div 
-                    className="relative bg-cyan-500/90 backdrop-blur-sm border-2 border-cyan-300 text-white font-bold text-2xl md:text-4xl text-center shadow-2xl rounded-2xl p-6 md:p-8 w-full"
+                    className={`relative bg-cyan-500/90 backdrop-blur-sm border-2 border-cyan-300 text-white font-bold text-center shadow-2xl rounded-2xl p-6 md:p-8 w-full ${fontSizeClass}`}
                     style={{ textShadow: '0 2px 5px rgba(0,0,0,0.5)' }}
                 >
                     {/* Bubble tail */}

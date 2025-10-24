@@ -11,9 +11,11 @@ interface AdminPanelProps {
     addModerator: (username: string) => void;
     removeModerator: (username: string) => void;
     bannedWords: Set<string>;
+    isModeratorMode: boolean;
+    setIsModeratorMode: (value: boolean) => void;
 }
 
-const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, actions, isPaused, moderators, addModerator, removeModerator, bannedWords }) => {
+const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, actions, isPaused, moderators, addModerator, removeModerator, bannedWords, isModeratorMode, setIsModeratorMode }) => {
     const [nextWord, setNextWord] = useState('');
     const [newMod, setNewMod] = useState('');
     const [activeTab, setActiveTab] = useState('game');
@@ -124,6 +126,28 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, actions, isPau
                                 >
                                     Buka Kata Sekarang
                                 </button>
+
+                                <div className="relative flex items-start pt-3 border-t border-gray-200 dark:border-gray-700">
+                                    <div className="flex h-6 items-center">
+                                        <input
+                                            id="moderator-mode"
+                                            aria-describedby="moderator-mode-description"
+                                            name="moderator-mode"
+                                            type="checkbox"
+                                            checked={isModeratorMode}
+                                            onChange={() => setIsModeratorMode(!isModeratorMode)}
+                                            className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-cyan-600 focus:ring-cyan-600 bg-gray-100 dark:bg-gray-900 dark:ring-offset-gray-800"
+                                        />
+                                    </div>
+                                    <div className="ml-3 text-sm leading-6">
+                                        <label htmlFor="moderator-mode" className="font-medium text-gray-900 dark:text-gray-100">
+                                            Mode Moderator
+                                        </label>
+                                        <p id="moderator-mode-description" className="text-gray-500 dark:text-gray-400">
+                                            Jika aktif, hanya moderator/owner yang bisa skip/pause/start game.
+                                        </p>
+                                    </div>
+                                </div>
                                 
                                 <div className="space-y-2 pt-2">
                                     <label htmlFor="nextWordInput" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
