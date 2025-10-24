@@ -236,17 +236,38 @@ const App: React.FC = () => {
             const isModerator = moderators.has(uniqueId);
             const comment = latestChatMessage.comment.trim().toLowerCase();
     
-            // 1. Process Owner commands (highest priority)
+            // 1. Process general commands for ALL users first.
+            if (comment === '!rank') {
+                if (rankOverlayTimeoutRef.current) clearTimeout(rankOverlayTimeoutRef.current);
+                setIsRankOverlayVisible(true);
+                rankOverlayTimeoutRef.current = window.setTimeout(() => setIsRankOverlayVisible(false), 5000);
+                return; // Command handled
+            }
+            if (comment === '!win') {
+                const user = latestChatMessage;
+                const userIndex = leaderboard.findIndex(entry => entry.user.uniqueId === user.uniqueId);
+                
+                if (userIndex !== -1) {
+                    const wins = leaderboard[userIndex].wins;
+                    const rank = userIndex + 1;
+                    showValidationToast(`<b>${user.nickname}</b>, kamu telah menang ${wins} kali dan berada di peringkat #${rank}.`, 'info');
+                } else {
+                    showValidationToast(`<b>${user.nickname}</b>, kamu belum pernah menang. Ayo tebak kata!`, 'info');
+                }
+                return; // Command handled
+            }
+    
+            // 2. Process Owner commands (highest priority)
             if (isOwner && processOwnerCommand(latestChatMessage)) {
                 return;
             }
     
-            // 2. Process Moderator commands (or owner acting as mod)
+            // 3. Process Moderator commands (or owner acting as mod)
             if ((isModerator || isOwner) && processModeratorCommand(latestChatMessage)) {
                 return;
             }
             
-            // 3. Process Public commands when moderator mode is OFF
+            // 4. Process Public commands when moderator mode is OFF
             if (!isModeratorMode) {
                 if (comment === '!start' || comment === '!skip') {
                     if (publicCommandCooldown) {
@@ -261,47 +282,20 @@ const App: React.FC = () => {
                     return;
                 }
             }
-
-            // 4. If moderator/owner sends a non-command message, treat as guess immediately
-            if (isModerator || isOwner) {
-                wordle.processChatMessage(latestChatMessage);
-            } else {
-            // 5. Regular user, add to queue for processing
-                setChatQueue(prev => [...prev, latestChatMessage]);
-            }
+            
+            // 5. If not a command, add to queue for processing as a guess
+            setChatQueue(prev => [...prev, latestChatMessage]);
         }
-    }, [latestChatMessage, moderators, isModeratorMode, publicCommandCooldown, processModeratorCommand, processOwnerCommand, wordle.actions, showValidationToast]);
+    }, [latestChatMessage, moderators, isModeratorMode, publicCommandCooldown, processModeratorCommand, processOwnerCommand, wordle.actions, showValidationToast, leaderboard]);
 
     useEffect(() => {
-        // Sequential processing for non-moderators
+        // Sequential processing for guesses and 'semangat'
         if (chatQueue.length > 0) {
             const messageToProcess = chatQueue[0];
-            const comment = messageToProcess.comment.trim().toLowerCase();
-            
-            // General Commands (non-moderator)
-            if (comment === '!rank') {
-                if (rankOverlayTimeoutRef.current) clearTimeout(rankOverlayTimeoutRef.current);
-                setIsRankOverlayVisible(true);
-                rankOverlayTimeoutRef.current = window.setTimeout(() => setIsRankOverlayVisible(false), 5000);
-            } else if (comment === '!win') {
-                const user = messageToProcess;
-                const userIndex = leaderboard.findIndex(entry => entry.user.uniqueId === user.uniqueId);
-                
-                if (userIndex !== -1) {
-                    const wins = leaderboard[userIndex].wins;
-                    const rank = userIndex + 1;
-                    showValidationToast(`<b>${user.nickname}</b>, kamu telah menang ${wins} kali dan berada di peringkat #${rank}.`, 'info');
-                } else {
-                    showValidationToast(`<b>${user.nickname}</b>, kamu belum pernah menang. Ayo tebak kata!`, 'info');
-                }
-            } else {
-                // Process as guess or participant entry for non-mods
-                wordle.processChatMessage(messageToProcess);
-            }
-
+            wordle.processChatMessage(messageToProcess);
             setChatQueue(prev => prev.slice(1));
         }
-    }, [chatQueue, leaderboard, showValidationToast, wordle]);
+    }, [chatQueue, wordle.processChatMessage]);
 
     useEffect(() => {
         if (latestGiftMessage) {
