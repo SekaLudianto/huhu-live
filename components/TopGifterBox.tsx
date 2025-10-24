@@ -17,9 +17,9 @@ const TopGifterBox: React.FC<TopGifterBoxProps> = ({ topGifters }) => {
   };
 
   return (
-    <div className="bg-gray-300/50 dark:bg-gray-700/50 rounded-lg p-4 flex flex-col h-full md:h-auto md:max-h-96">
-      <h3 className="text-lg font-bold text-center text-gray-900 dark:text-white mb-3 flex-shrink-0 flex items-center justify-center gap-2">
-        <HeartIcon className="w-6 h-6 text-pink-500 dark:text-pink-400"/>
+    <div className="bg-gray-300/50 dark:bg-gray-700/50 md:rounded-lg p-2 md:p-4 flex flex-col h-full md:h-auto md:max-h-96">
+      <h3 className="text-md md:text-lg font-bold text-center text-gray-900 dark:text-white mb-2 flex-shrink-0 flex items-center justify-center gap-2">
+        <HeartIcon className="w-5 h-5 md:w-6 md:h-6 text-pink-500 dark:text-pink-400"/>
         Peringkat Orang Baik
       </h3>
       <div className="flex-grow overflow-y-auto space-y-2 pr-2">
@@ -41,7 +41,7 @@ const TopGifterBox: React.FC<TopGifterBoxProps> = ({ topGifters }) => {
             </div>
           ))
         ) : (
-          <div className="flex items-center justify-center h-48 text-gray-500 dark:text-gray-400">
+          <div className="flex items-center justify-center h-full text-center text-gray-500 dark:text-gray-400">
             Belum ada Orang Baik yang muncul.
           </div>
         )}

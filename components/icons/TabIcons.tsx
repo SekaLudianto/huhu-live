@@ -31,7 +31,8 @@ export const StatsIcon: React.FC = () => (
 );
 
 export const DiamondIcon: React.FC = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 21l5.25-11.25L21 21m-9-3H7.5M12 21V10.5M12 10.5L4.5 3M12 10.5L19.5 3M4.5 3h15" />
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 4.5l7.5 7.5-7.5 7.5-7.5-7.5 7.5-7.5z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5" />
     </svg>
 );

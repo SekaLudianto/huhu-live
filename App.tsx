@@ -15,7 +15,7 @@ import FollowMeOverlay from './components/FollowMeOverlay';
 import AdminPanel from './components/AdminPanel';
 import ParticipationReminderOverlay from './components/ParticipationReminderOverlay';
 import { User, LeaderboardEntry, ChatMessage, GiftMessage, SocialMessage, ConnectionState, TopGifterEntry } from './types';
-import { GameIcon, LeaderboardIcon, ChatIcon, GiftIcon, StatsIcon, DiamondIcon } from './components/icons/TabIcons';
+import { ChatIcon, GiftIcon, LeaderboardIcon, DiamondIcon } from './components/icons/TabIcons';
 import { SpinnerIcon } from './components/icons/SpinnerIcon';
 import { AdminIcon } from './components/icons/AdminIcon';
 import { leaderboardService } from './services/firebaseService';
@@ -39,7 +39,7 @@ const App: React.FC = () => {
     
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
     const [topGifters, setTopGifters] = useState<TopGifterEntry[]>([]);
-    const [activeTab, setActiveTab] = useState('game');
+    const [activeTab, setActiveTab] = useState('chat');
     const [isRankOverlayVisible, setIsRankOverlayVisible] = useState(false);
     const [sultanInfo, setSultanInfo] = useState<{ user: User; gift: GiftMessage } | null>(null);
     const [validationToast, setValidationToast] = useState<{ show: boolean, content: string, type: 'info' | 'error' }>({ show: false, content: '', type: 'info' });
@@ -69,10 +69,6 @@ const App: React.FC = () => {
             newMods.delete(username.toLowerCase());
             return newMods;
         });
-    };
-
-    const toggleAdminPanel = () => {
-        setIsAdminPanelOpen(prev => !prev);
     };
 
     useEffect(() => {
@@ -291,20 +287,18 @@ const App: React.FC = () => {
         };
     }, []);
 
-    const tabs = [
-        { name: 'game', label: 'Game', icon: <GameIcon /> },
-        { name: 'stats', label: 'Statistik', icon: <StatsIcon /> },
-        { name: 'leaderboard', label: 'Peringkat', icon: <LeaderboardIcon /> },
-        { name: 'top_gifter', label: 'Orang Baik', icon: <DiamondIcon /> },
+    const mobileTabs = [
         { name: 'chat', label: 'Obrolan', icon: <ChatIcon /> },
         { name: 'gift', label: 'Hadiah', icon: <GiftIcon /> },
+        { name: 'leaderboard', label: 'Peringkat', icon: <LeaderboardIcon /> },
+        { name: 'top_gifter', label: 'Orang Baik', icon: <DiamondIcon /> },
     ];
     
     if (!isConnected) {
         return (
             <div className="w-full h-screen flex items-center justify-center p-4 bg-gray-900 text-gray-200">
                 <div className="w-full max-w-md mx-auto bg-gray-800 rounded-2xl shadow-lg p-6 space-y-6 text-center">
-                    <Header onAdminClick={toggleAdminPanel} />
+                    <Header />
                     <div className="flex flex-col items-center justify-center gap-4 py-8">
                         <SpinnerIcon className="w-12 h-12 text-cyan-400" />
                         <p className={`text-lg font-medium ${errorMessage ? 'text-red-500' : 'text-white'}`}>
@@ -320,8 +314,8 @@ const App: React.FC = () => {
     }
 
     return (
-        <div className="w-full h-screen md:min-h-screen flex items-center justify-center p-2 md:p-4">
-            <div className="mx-auto bg-gray-800 md:rounded-2xl shadow-lg p-2 md:p-6 flex flex-col w-full h-full md:max-w-6xl md:h-auto md:max-h-[95vh] relative">
+        <div className="w-full h-screen md:min-h-screen flex items-center justify-center p-0 md:p-4 bg-gray-800">
+            <div className="mx-auto bg-gray-800 md:rounded-2xl shadow-lg md:p-6 flex flex-col w-full h-full md:max-w-6xl md:h-auto md:max-h-[95vh] relative">
                 
                 <RankOverlay isOpen={isRankOverlayVisible} leaderboard={leaderboard} />
                 <SultanOverlay 
@@ -341,9 +335,10 @@ const App: React.FC = () => {
                     bannedWords={wordle.gameState.bannedWords}
                  />
                 
-                <div className="flex-shrink-0 space-y-4">
-                    <Header onAdminClick={toggleAdminPanel} />
-                    <div className="hidden md:block">
+                {/* DESKTOP VIEW */}
+                <div className="hidden md:flex flex-col h-full">
+                    <div className="flex-shrink-0 space-y-4">
+                        <Header />
                         <Stats 
                           isConnected={isConnected} 
                           connectionState={connectionState} 
@@ -353,64 +348,70 @@ const App: React.FC = () => {
                           totalDiamonds={totalDiamonds}
                         />
                     </div>
-                </div>
-                
-                <div className="hidden md:grid grid-cols-[2fr_3fr] gap-6 mt-6 flex-grow min-h-0">
-                    <div className="flex flex-col gap-2">
-                        <InfoMarquee />
-                        <WordleGame gameState={wordle.gameState} />
-                    </div>
-                    <div className="flex flex-col gap-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <Leaderboard leaderboard={leaderboard} />
-                            <TopGifterBox topGifters={topGifters} />
-                        </div>
-                        <div className="flex-grow grid grid-cols-2 gap-4 min-h-0">
-                            <ChatBox latestMessage={latestChatMessage} />
-                            <GiftBox latestGift={latestGiftMessage} />
-                        </div>
-                    </div>
-                </div>
-
-                <div className="md:hidden flex flex-col flex-grow min-h-0 mt-4">
-                    {activeTab === 'game' && (
-                        <div className="mb-2 flex-shrink-0">
+                    <div className="grid grid-cols-[2fr_3fr] gap-6 mt-6 flex-grow min-h-0">
+                        <div className="flex flex-col gap-2">
                             <InfoMarquee />
+                            <WordleGame gameState={wordle.gameState} />
                         </div>
-                    )}
-                    <div className="flex-grow overflow-y-auto">
-                        {activeTab === 'game' && <WordleGame gameState={wordle.gameState} />}
-                        {activeTab === 'stats' && <Stats 
-                                                  isConnected={isConnected} 
-                                                  connectionState={connectionState} 
-                                                  errorMessage={errorMessage}
-                                                  roomUsers={roomUsers}
-                                                  latestLike={latestLikeMessage}
-                                                  totalDiamonds={totalDiamonds}
-                                                />}
-                        {activeTab === 'leaderboard' && <Leaderboard leaderboard={leaderboard} />}
-                        {activeTab === 'top_gifter' && <TopGifterBox topGifters={topGifters} />}
-                        {activeTab === 'chat' && <ChatBox latestMessage={latestChatMessage} />}
-                        {activeTab === 'gift' && <GiftBox latestGift={latestGiftMessage} />}
-                    </div>
-                    <div className="flex-shrink-0 grid grid-cols-6 gap-1 p-1 bg-gray-900/50 mt-2 rounded-lg">
-                        {tabs.map(tab => (
-                            <button
-                                key={tab.name}
-                                onClick={() => setActiveTab(tab.name)}
-                                className={`flex flex-col items-center justify-center p-1.5 text-xs rounded-md transition-colors duration-200 ${
-                                    activeTab === tab.name
-                                        ? 'bg-cyan-600 text-white'
-                                        : 'text-gray-300 hover:bg-gray-700'
-                                }`}
-                            >
-                                <span className="w-5 h-5 mb-0.5">{tab.icon}</span>
-                                <span className="truncate">{tab.label}</span>
-                            </button>
-                        ))}
+                        <div className="flex flex-col gap-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <Leaderboard leaderboard={leaderboard} />
+                                <TopGifterBox topGifters={topGifters} />
+                            </div>
+                            <div className="flex-grow grid grid-cols-2 gap-4 min-h-0">
+                                <ChatBox latestMessage={latestChatMessage} />
+                                <GiftBox latestGift={latestGiftMessage} />
+                            </div>
+                        </div>
                     </div>
                 </div>
 
+                {/* MOBILE VIEW */}
+                <div className="md:hidden flex flex-col h-full overflow-hidden">
+                    <div className="flex-shrink-0 p-2 space-y-2">
+                        <Header />
+                        <Stats 
+                            isConnected={isConnected} 
+                            connectionState={connectionState} 
+                            errorMessage={errorMessage}
+                            roomUsers={roomUsers}
+                            latestLike={latestLikeMessage}
+                            totalDiamonds={totalDiamonds}
+                        />
+                    </div>
+
+                    <div className="flex-grow flex flex-col justify-center min-h-0 px-2">
+                        <InfoMarquee />
+                        <div className="flex-grow flex flex-col justify-center min-h-0 py-2">
+                            <WordleGame gameState={wordle.gameState} />
+                        </div>
+                    </div>
+
+                    <div className="flex-shrink-0 flex flex-col bg-gray-900/70 backdrop-blur-sm rounded-t-2xl shadow-[0_-5px_15px_-5px_rgba(0,0,0,0.3)] max-h-[40vh]">
+                        <div className="flex-grow overflow-hidden">
+                            {activeTab === 'chat' && <ChatBox latestMessage={latestChatMessage} />}
+                            {activeTab === 'gift' && <GiftBox latestGift={latestGiftMessage} />}
+                            {activeTab === 'leaderboard' && <Leaderboard leaderboard={leaderboard} />}
+                            {activeTab === 'top_gifter' && <TopGifterBox topGifters={topGifters} />}
+                        </div>
+                        <div className="flex-shrink-0 grid grid-cols-4 gap-1 p-1 border-t border-gray-700/50">
+                             {mobileTabs.map(tab => (
+                                <button
+                                    key={tab.name}
+                                    onClick={() => setActiveTab(tab.name)}
+                                    className={`flex flex-col items-center justify-center p-1.5 text-xs rounded-md transition-colors duration-200 ${
+                                        activeTab === tab.name
+                                            ? 'bg-cyan-600 text-white'
+                                            : 'text-gray-300 hover:bg-gray-700'
+                                    }`}
+                                >
+                                    <span className="w-5 h-5 mb-0.5">{tab.icon}</span>
+                                    <span className="truncate">{tab.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );
