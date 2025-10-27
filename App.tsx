@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useTikTok } from './hooks/useTikTok';
 import { useWordleGame } from './hooks/useWordleGame';
@@ -64,6 +65,7 @@ const App: React.FC = () => {
     const lastProcessedGiftRef = useRef<GiftMessage | null>(null);
     const lastProcessedSocialRef = useRef<SocialMessage | null>(null);
     const prevConnectionStateRef = useRef<ConnectionState | null>(null);
+    const chatProcessorIntervalRef = useRef<number | null>(null);
     
     const addModerator = (username: string) => {
         setModerators(prev => new Set(prev).add(username.toLowerCase()));
@@ -143,62 +145,79 @@ const App: React.FC = () => {
     }, [latestChatMessage]);
 
     useEffect(() => {
-        if (chatQueue.length > 0) {
-            const batchSize = Math.min(chatQueue.length, 5);
-            const messagesToProcess = chatQueue.slice(0, batchSize);
-    
-            messagesToProcess.forEach(messageToProcess => {
-                const comment = messageToProcess.comment.trim();
-                const isModerator = moderators.has(messageToProcess.uniqueId.toLowerCase());
-                
-                if (isModerator) {
-                     if (comment.toLowerCase().startsWith('!pesan ')) {
-                        const broadcastMessage = comment.substring(7).trim();
-                        if (broadcastMessage) {
-                            if (broadcastTimeoutRef.current) clearTimeout(broadcastTimeoutRef.current);
-                            setBroadcastInfo({ user: messageToProcess, message: broadcastMessage, isOpen: true });
-                            broadcastTimeoutRef.current = window.setTimeout(() => {
-                                setBroadcastInfo(prev => prev ? { ...prev, isOpen: false } : null);
-                            }, 15000); // Show for 15 seconds
-                        }
-                        return; 
+        const processMessage = (messageToProcess: ChatMessage) => {
+            const comment = messageToProcess.comment.trim();
+            const isModerator = moderators.has(messageToProcess.uniqueId.toLowerCase());
+            
+            if (isModerator) {
+                 if (comment.toLowerCase().startsWith('!pesan ')) {
+                    const broadcastMessage = comment.substring(7).trim();
+                    if (broadcastMessage) {
+                        if (broadcastTimeoutRef.current) clearTimeout(broadcastTimeoutRef.current);
+                        setBroadcastInfo({ user: messageToProcess, message: broadcastMessage, isOpen: true });
+                        broadcastTimeoutRef.current = window.setTimeout(() => {
+                            setBroadcastInfo(prev => prev ? { ...prev, isOpen: false } : null);
+                        }, 15000); // Show for 15 seconds
                     }
-                    if (comment === '!stop') {
-                        wordle.actions.revealWord();
-                        return;
-                    }
-                    if (comment === '!skip') {
-                        wordle.actions.skipWord();
-                        return;
-                    }
+                    return; 
                 }
+                if (comment === '!stop') {
+                    wordle.actions.revealWord();
+                    return;
+                }
+                if (comment === '!skip') {
+                    wordle.actions.skipWord();
+                    return;
+                }
+            }
+            
+            if (comment === '!rank') {
+                if (rankOverlayTimeoutRef.current) clearTimeout(rankOverlayTimeoutRef.current);
+                setIsRankOverlayVisible(true);
+                rankOverlayTimeoutRef.current = window.setTimeout(() => setIsRankOverlayVisible(false), 5000);
+            } else if (comment === '!win') {
+                const user = messageToProcess;
+                const userIndex = leaderboard.findIndex(entry => entry.user.uniqueId === user.uniqueId);
                 
-                if (comment === '!rank') {
-                    if (rankOverlayTimeoutRef.current) clearTimeout(rankOverlayTimeoutRef.current);
-                    setIsRankOverlayVisible(true);
-                    rankOverlayTimeoutRef.current = window.setTimeout(() => setIsRankOverlayVisible(false), 5000);
-                } else if (comment === '!win') {
-                    const user = messageToProcess;
-                    const userIndex = leaderboard.findIndex(entry => entry.user.uniqueId === user.uniqueId);
+                if (userIndex !== -1) {
+                    const wins = leaderboard[userIndex].wins;
+                    const rank = userIndex + 1;
                     
-                    if (userIndex !== -1) {
-                        const wins = leaderboard[userIndex].wins;
-                        const rank = userIndex + 1;
-                        
-                        if (rankInfoTimeoutRef.current) clearTimeout(rankInfoTimeoutRef.current);
-                        setRankInfo({ user, wins, rank, isOpen: true });
-                        rankInfoTimeoutRef.current = window.setTimeout(() => setRankInfo(null), 7000);
+                    if (rankInfoTimeoutRef.current) clearTimeout(rankInfoTimeoutRef.current);
+                    setRankInfo({ user, wins, rank, isOpen: true });
+                    rankInfoTimeoutRef.current = window.setTimeout(() => setRankInfo(null), 7000);
 
-                    } else {
-                        showValidationToast(`<b>${user.nickname}</b>, kamu belum pernah menang. Ayo tebak kata!`, 'info');
-                    }
                 } else {
-                    wordle.processChatMessage(messageToProcess);
+                    showValidationToast(`<b>${user.nickname}</b>, kamu belum pernah menang. Ayo tebak kata!`, 'info');
                 }
-            });
+            } else {
+                wordle.processChatMessage(messageToProcess);
+            }
+        };
     
-            setChatQueue(prev => prev.slice(batchSize));
+        if (chatQueue.length > 0 && !chatProcessorIntervalRef.current) {
+            chatProcessorIntervalRef.current = window.setInterval(() => {
+                setChatQueue(prevQueue => {
+                    const messageToProcess = prevQueue[0];
+                    if (messageToProcess) {
+                        processMessage(messageToProcess);
+                    }
+                    const nextQueue = prevQueue.slice(1);
+                    if (nextQueue.length === 0 && chatProcessorIntervalRef.current) {
+                        clearInterval(chatProcessorIntervalRef.current);
+                        chatProcessorIntervalRef.current = null;
+                    }
+                    return nextQueue;
+                });
+            }, 250); // Process one message every 250ms
         }
+    
+        return () => {
+            if (chatProcessorIntervalRef.current) {
+                clearInterval(chatProcessorIntervalRef.current);
+                chatProcessorIntervalRef.current = null;
+            }
+        };
     }, [chatQueue, wordle, leaderboard, moderators, showValidationToast]);
 
     useEffect(() => {
