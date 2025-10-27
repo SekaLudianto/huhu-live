@@ -23,7 +23,7 @@ import { AdminIcon } from './components/icons/AdminIcon';
 import { leaderboardService } from './services/firebaseService';
 import SocialTabContent from './components/SocialTabContent';
 
-const TARGET_USERNAME = 'achmadsyams';
+const TARGET_USERNAME = 'goldaaac';
 
 const App: React.FC = () => {
     const { 
