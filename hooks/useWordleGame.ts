@@ -127,7 +127,7 @@ export const useWordleGame = ({
         } else if (reason === 'gift') {
             toastContent = `<b>${user.nickname}</b>, makasih giftnya! Kamu sekarang bisa menebak.`;
         } else if (reason === 'comment') {
-            toastContent = `Makasih <b>${user.nickname}</b> atas semangatnya! Kamu sekarang bisa ikut menebak.`;
+            toastContent = `Makasih udah dukung Palestina, <b>${user.nickname}</b>!`;
         }
         showValidationToast(toastContent, 'info');
     }, [participants, showValidationToast]);
@@ -311,7 +311,7 @@ export const useWordleGame = ({
         const guess = comment.toUpperCase();
         const isModerator = moderators.has(message.uniqueId.toLowerCase());
 
-        if (comment.toLowerCase() === 'semangat') {
+        if (comment.toLowerCase() === 'free palestine') {
             addParticipant(message, 'comment');
             return;
         }

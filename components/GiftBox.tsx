@@ -15,10 +15,15 @@ const GiftBox: React.FC<GiftBoxProps> = ({ latestGift }) => {
                 const newGifts = [latestGift, ...prev];
                 return newGifts.slice(0, 50);
             });
+
+            // Auto-scroll to top if user is already near the top
+            if (containerRef.current && containerRef.current.scrollTop < 50) {
+                 setTimeout(() => {
+                    containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                }, 100);
+            }
         }
     }, [latestGift]);
-
-    // Auto-scrolling to bottom is removed to show new gifts at the top.
     
     const generateUsernameLink = (data: GiftMessage) => {
         return <a className="text-cyan-400 hover:underline" href={`https://www.tiktok.com/@${data.uniqueId}`} target="_blank" rel="noopener noreferrer">{data.nickname}</a>;
@@ -29,7 +34,7 @@ const GiftBox: React.FC<GiftBoxProps> = ({ latestGift }) => {
             <h3 className="text-lg font-bold text-center text-white mb-3">Hadiah</h3>
             <div className="flex-grow overflow-y-auto pr-2 space-y-2" ref={containerRef}>
                 {gifts.map((gift, index) => (
-                    <div key={`${gift.giftId}-${index}`} className="bg-gray-800/50 p-2 rounded-lg flex items-start text-sm text-gray-200">
+                    <div key={`${gift.userId}-${gift.giftId}-${gift.repeatCount}-${index}`} className={`bg-gray-800/50 p-2 rounded-lg flex items-start text-sm text-gray-200 ${index === 0 ? 'animate-slide-in-down' : ''}`}>
                         <img className="w-8 h-8 rounded-full mr-3" src={gift.profilePictureUrl} alt={gift.nickname} />
                         <div className="flex-1">
                             <b>{generateUsernameLink(gift)}</b> mengirim {gift.describe}

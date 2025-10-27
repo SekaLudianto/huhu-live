@@ -26,7 +26,7 @@ const ParticipationReminderOverlay: React.FC<ParticipationReminderOverlayProps> 
             Hai, <b className="text-blue-300 truncate">{user.nickname}</b>!
           </p>
           <p className="text-xs text-gray-300 text-left mt-1">
-            Untuk ikut menebak, ayo <b>Follow</b>, kirim <b>Gift</b>, atau ketik '<b>SEMANGAT</b>'
+            Untuk ikut menebak, ayo <b>Follow</b>, kirim <b>Gift</b>, atau ketik '<b>Free Palestine</b>'
           </p>
         </div>
         <img 

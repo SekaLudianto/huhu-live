@@ -1,7 +1,7 @@
 import React from 'react';
 import WordleGrid from './WordleGrid';
 import Modal from './Modal';
-import { User, TopGifterEntry } from '../types';
+import { User, TopGifterEntry, LeaderboardEntry } from '../types';
 import { SpinnerIcon } from './icons/SpinnerIcon';
 import { WordleGameState } from '../hooks/useWordleGame';
 import ValidationToast from './ValidationToast';
@@ -9,10 +9,11 @@ import ValidationToast from './ValidationToast';
 interface WordleGameProps {
     gameState: WordleGameState;
     topGifters: TopGifterEntry[];
+    leaderboard: LeaderboardEntry[];
     validationToast: { show: boolean, content: string, type: 'info' | 'error' };
 }
 
-const WordleGame: React.FC<WordleGameProps> = ({ gameState, topGifters, validationToast }) => {
+const WordleGame: React.FC<WordleGameProps> = ({ gameState, topGifters, leaderboard, validationToast }) => {
     const {
         bestGuess,
         recentGuesses,
@@ -64,7 +65,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameState, topGifters, validati
                 )}
                 
                 <p className="text-center text-gray-400 text-xs md:text-sm mb-1 flex items-center justify-center">
-                    {isPreparing ? 'Game baru akan segera dimulai!' : `Kirim gift, follow, atau komen SEMANGAT untuk ikut menebak!`}
+                    {isPreparing ? 'Game baru akan segera dimulai!' : `Kirim gift, follow, atau komen "Free Palestine" untuk ikut menebak!`}
                 </p>
                 <div className="w-full mx-auto flex-grow overflow-hidden">
                     {isLoading ? (
@@ -77,6 +78,8 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameState, topGifters, validati
                                 bestGuess={bestGuess}
                                 recentGuesses={recentGuesses}
                                 wordLength={WORD_LENGTH} 
+                                leaderboard={leaderboard}
+                                topGifters={topGifters}
                             />
                         </div>
                     )}

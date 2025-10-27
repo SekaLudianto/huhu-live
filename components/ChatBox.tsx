@@ -16,10 +16,15 @@ const ChatBox: React.FC<ChatBoxProps> = ({ latestMessage }) => {
                 // Keep only the first 100 messages (the newest ones)
                 return newMessages.slice(0, 100);
             });
+
+            // Auto-scroll to top if user is already near the top
+            if (containerRef.current && containerRef.current.scrollTop < 50) {
+                setTimeout(() => {
+                    containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                }, 100);
+            }
         }
     }, [latestMessage]);
-
-    // Auto-scrolling to the bottom is removed to show new messages at the top.
     
     const generateUsernameLink = (data: ChatMessage) => {
         return <a className="text-cyan-400 hover:underline" href={`https://www.tiktok.com/@${data.uniqueId}`} target="_blank" rel="noopener noreferrer">{data.nickname}</a>;
@@ -30,7 +35,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ latestMessage }) => {
             <h3 className="text-lg font-bold text-center text-white mb-3">Obrolan Langsung</h3>
             <div className="flex-grow overflow-y-auto pr-2 space-y-3" ref={containerRef}>
                 {messages.map((msg, index) => (
-                    <div key={index} className="bg-gray-800/50 p-2 rounded-lg flex items-start text-sm">
+                    <div key={`${msg.uniqueId}-${msg.comment}-${index}`} className={`bg-gray-800/50 p-2 rounded-lg flex items-start text-sm ${index === 0 ? 'animate-slide-in-down' : ''}`}>
                         <img className="w-8 h-8 rounded-full mr-3 flex-shrink-0" src={msg.profilePictureUrl} alt={msg.nickname} />
                         <div className="flex-1 text-gray-200">
                             <b>{generateUsernameLink(msg)}:</b>

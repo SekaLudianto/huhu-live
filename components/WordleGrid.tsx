@@ -1,17 +1,27 @@
 import React from 'react';
 import Tile from './Tile';
-import { GuessData, TileStatus } from '../types';
+import { GuessData, TileStatus, LeaderboardEntry, TopGifterEntry } from '../types';
+import { TrophyIcon, DiamondBadgeIcon } from './icons/BadgeIcons';
 
 interface WordleGridProps {
   bestGuess: GuessData | null;
   recentGuesses: GuessData[];
   wordLength: number;
+  leaderboard: LeaderboardEntry[];
+  topGifters: TopGifterEntry[];
 }
 
-const WordleGrid: React.FC<WordleGridProps> = ({ bestGuess, recentGuesses, wordLength }) => {
+const trophyColors = ['text-yellow-400', 'text-gray-300', 'text-yellow-600'];
+const diamondColors = ['text-pink-400', 'text-cyan-400', 'text-green-400'];
 
-  const renderGuessRow = (guessData: GuessData, key: string | number) => (
-    <div key={key} className="guess-row">
+const WordleGrid: React.FC<WordleGridProps> = ({ bestGuess, recentGuesses, wordLength, leaderboard, topGifters }) => {
+
+  const renderGuessRow = (guessData: GuessData, key: string | number, isNew?: boolean) => {
+    const leaderboardRank = leaderboard.slice(0, 3).findIndex(entry => entry.user.uniqueId === guessData.user.uniqueId);
+    const gifterRank = topGifters.slice(0, 3).findIndex(entry => entry.user.uniqueId === guessData.user.uniqueId);
+
+    return (
+    <div key={key} className={`guess-row ${isNew ? 'animate-slide-in-down' : ''}`}>
         <div className="flex items-center gap-1 mb-0.5">
             <img
                 className="w-5 h-5 rounded-full bg-gray-700 object-cover"
@@ -21,6 +31,18 @@ const WordleGrid: React.FC<WordleGridProps> = ({ bestGuess, recentGuesses, wordL
             <span className="text-xs text-gray-300 font-medium break-words">
                 {guessData.user.nickname}
             </span>
+            {leaderboardRank !== -1 && (
+                <TrophyIcon 
+                    className={`w-4 h-4 ml-1 ${trophyColors[leaderboardRank]}`}
+                    title={`Peringkat #${leaderboardRank + 1}`}
+                />
+            )}
+            {gifterRank !== -1 && (
+                <DiamondBadgeIcon
+                    className={`w-4 h-4 ml-1 ${diamondColors[gifterRank]}`}
+                    title={`Top Gifter #${gifterRank + 1}`}
+                />
+            )}
         </div>
         <div
             className="wordle-grid-row grid gap-0.5"
@@ -34,7 +56,7 @@ const WordleGrid: React.FC<WordleGridProps> = ({ bestGuess, recentGuesses, wordL
             })}
         </div>
     </div>
-  );
+  )};
 
 
   if (!bestGuess) {
@@ -75,9 +97,9 @@ const WordleGrid: React.FC<WordleGridProps> = ({ bestGuess, recentGuesses, wordL
                     </div>
                 </div>
 
-                <div className="space-y-0.5">
+                <div className="space-y-0.5 max-h-[250px] overflow-y-auto pr-2">
                     {recentGuesses.map((guessData, i) => 
-                        renderGuessRow(guessData, `${guessData.user.uniqueId}-${guessData.guess}-${i}`)
+                        renderGuessRow(guessData, `${guessData.user.uniqueId}-${guessData.guess}-${i}`, i === 0)
                     )}
                 </div>
             </>

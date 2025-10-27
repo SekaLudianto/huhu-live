@@ -365,7 +365,12 @@ const App: React.FC = () => {
                 
                 <div className="hidden md:grid grid-cols-[2fr_3fr] gap-6 mt-6 flex-grow min-h-0">
                     <div className="flex flex-col gap-2">
-                        <WordleGame gameState={wordle.gameState} topGifters={topGifters} validationToast={validationToast} />
+                        <WordleGame 
+                            gameState={wordle.gameState} 
+                            topGifters={topGifters} 
+                            leaderboard={leaderboard}
+                            validationToast={validationToast} 
+                        />
                     </div>
                     <div className="flex flex-col gap-4">
                         <div className="grid grid-cols-2 gap-4">
@@ -381,7 +386,7 @@ const App: React.FC = () => {
 
                 <div className="md:hidden flex flex-col flex-grow min-h-0 mt-4">
                     <div className="flex-grow overflow-y-auto">
-                        {activeTab === 'game' && <WordleGame gameState={wordle.gameState} topGifters={topGifters} validationToast={validationToast} />}
+                        {activeTab === 'game' && <WordleGame gameState={wordle.gameState} topGifters={topGifters} leaderboard={leaderboard} validationToast={validationToast} />}
                         {activeTab === 'stats' && (
                             <div className="space-y-4">
                                 <Stats 
