@@ -1,3 +1,5 @@
+
+
 import React from 'react';
 import WordleGrid from './WordleGrid';
 import Modal from './Modal';
@@ -25,6 +27,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameState, topGifters, leaderbo
         isModalOpen,
         modalContent,
         autoRestartGame,
+        gameMode,
     } = gameState;
 
     const WORD_LENGTH = 5;
@@ -65,7 +68,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameState, topGifters, leaderbo
                 )}
                 
                 <p className="text-center text-gray-400 text-xs md:text-sm mb-1 flex items-center justify-center">
-                    {isPreparing ? 'Game baru akan segera dimulai!' : `Kirim gift, follow, atau komen "Free Palestine" untuk ikut menebak!`}
+                    {isPreparing ? 'Game baru akan segera dimulai!' : 'Ketik tebakanmu di kolom komentar untuk bermain!'}
                 </p>
                 <div className="w-full mx-auto flex-grow overflow-hidden">
                     {isLoading ? (
@@ -87,6 +90,9 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameState, topGifters, leaderbo
                 <div className="flex flex-col items-center justify-center mt-1">
                     <div className="text-center text-sm md:text-base font-medium text-cyan-400 h-6">
                         {isPreparing ? 'Kata baru sedang disiapkan...' : gameMessage}
+                    </div>
+                    <div className="text-center text-xs text-gray-500 h-4">
+                        Mode: {gameMode === 'random' ? 'Acak' : 'Kosakata Pilihan'}
                     </div>
                 </div>
             </div>

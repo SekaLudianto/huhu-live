@@ -1,18 +1,29 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ChatMessage, GiftMessage, GuessData, TileStatus, User, SocialMessage } from '../types';
 import wordService from '../services/wordService';
-import { participationService } from '../services/participationService';
 
 const WORD_LENGTH = 5;
 const TIMER_DURATION = 500; // Durasi game diubah menjadi 500 detik
 const PREPARE_TIME = 5; // 5 seconds
 const GAME_START_COOLDOWN = 3; // Cooldown 3 detik sebelum tebakan diterima
-// FIX: Define COOLDOWN_SECONDS to control user guess frequency.
 const COOLDOWN_SECONDS = 2; // Cooldown 2 detik per tebakan user
+const INACTIVITY_DURATION = 120 * 1000; // 2 menit
 
 const praisePhrases = [
     "Kerja bagus!", "Luar biasa!", "Tebakan jitu!", "Hebat sekali!",
     "Kamu jenius!", "Tepat sasaran!", "Mantap betul!", "Spektakuler!"
+];
+
+const GENERIC_AVATAR_URL = 'https://static.vecteezy.com/system/resources/previews/009/292/244/original/default-avatar-icon-of-social-media-user-vector.jpg';
+const fakeUsers: User[] = [
+    { uniqueId: 'bot_galon', nickname: 'Tukang Galon', profilePictureUrl: GENERIC_AVATAR_URL },
+    { uniqueId: 'bot_bakso', nickname: 'Tukang Bakso', profilePictureUrl: GENERIC_AVATAR_URL },
+    { uniqueId: 'bot_ibu_rt', nickname: 'Ibu RT', profilePictureUrl: GENERIC_AVATAR_URL },
+    { uniqueId: 'bot_ojol', nickname: 'Driver Ojol', profilePictureUrl: GENERIC_AVATAR_URL },
+    { uniqueId: 'bot_ronda', nickname: 'Bapak Hansip', profilePictureUrl: GENERIC_AVATAR_URL },
+    { uniqueId: 'bot_wibu', nickname: 'Wibu Akut', profilePictureUrl: GENERIC_AVATAR_URL },
+    { uniqueId: 'bot_emak', nickname: 'Emak-emak Sen', profilePictureUrl: GENERIC_AVATAR_URL },
 ];
 
 export interface WordleGameState {
@@ -35,12 +46,14 @@ export interface WordleGameState {
     };
     autoRestartGame: () => void;
     bannedWords: Set<string>;
+    gameMode: 'random' | 'selected';
 }
 
 export interface WordleGameActions {
     startNewGame: (word?: string) => void;
     revealWord: () => void;
     skipWord: () => void;
+    setGameModeAndRestart: (mode: 'random' | 'selected') => void;
 }
 
 interface UseWordleGameProps {
@@ -48,7 +61,6 @@ interface UseWordleGameProps {
     moderators: Set<string>;
     updateLeaderboard: (winner: User) => void;
     showValidationToast: (content: string, type?: 'info' | 'error') => void;
-    showParticipationReminder: (user: User) => void;
     onInstantWin: (user: User) => void;
     onNewGameStart: () => void;
 }
@@ -89,7 +101,6 @@ export const useWordleGame = ({
     moderators,
     updateLeaderboard,
     showValidationToast,
-    showParticipationReminder,
     onInstantWin,
     onNewGameStart,
 }: UseWordleGameProps) => {
@@ -107,36 +118,20 @@ export const useWordleGame = ({
     const [isAcceptingGuesses, setIsAcceptingGuesses] = useState(false);
     const [bannedWords, setBannedWords] = useState<Set<string>>(new Set());
     const [userCooldowns, setUserCooldowns] = useState(new Map<string, number>());
-    const [participants, setParticipants] = useState(() => participationService.getParticipants());
-
-
+    const [gameMode, setGameMode] = useState<'random' | 'selected'>('random');
+    
     const timerRef = useRef<number | null>(null);
     const guessedWordsRef = useRef(new Set<string>());
-
-    const addParticipant = useCallback((user: User, reason: 'follow' | 'gift' | 'comment') => {
-        if (participants.has(user.uniqueId)) {
-            return;
-        }
-
-        participationService.addParticipant(user.uniqueId);
-        setParticipants(prev => new Set(prev).add(user.uniqueId));
-
-        let toastContent = '';
-        if (reason === 'follow') {
-            toastContent = `<b>${user.nickname}</b>, terima kasih sudah follow! Kamu sekarang bisa menebak.`;
-        } else if (reason === 'gift') {
-            toastContent = `<b>${user.nickname}</b>, makasih giftnya! Kamu sekarang bisa menebak.`;
-        } else if (reason === 'comment') {
-            toastContent = `Makasih udah dukung Palestina, <b>${user.nickname}</b>!`;
-        }
-        showValidationToast(toastContent, 'info');
-    }, [participants, showValidationToast]);
-
+    const inactivityTimerRef = useRef<number | null>(null);
 
     const clearAllTimers = useCallback(() => {
         if (timerRef.current) {
             clearInterval(timerRef.current);
             timerRef.current = null;
+        }
+        if (inactivityTimerRef.current) {
+            clearTimeout(inactivityTimerRef.current);
+            inactivityTimerRef.current = null;
         }
     }, []);
 
@@ -159,6 +154,90 @@ export const useWordleGame = ({
 
     }, [solution]);
 
+    // Forward declaration for resetInactivityTimer
+    const resetInactivityTimer = useRef(() => {});
+
+    const processGuess = useCallback((guess: string, user: User) => {
+        if (isGameOver || isPreparing || isLoading || !isAcceptingGuesses) return;
+    
+        const now = Date.now();
+        const lastGuessTime = userCooldowns.get(user.uniqueId);
+        // Bot guesses ignore user cooldowns but not global ones
+        if (!user.uniqueId.startsWith('bot_') && lastGuessTime && (now - lastGuessTime) < COOLDOWN_SECONDS * 1000) {
+            return;
+        }
+    
+        const guessUpper = guess.toUpperCase();
+    
+        if (guessUpper.length !== WORD_LENGTH) return;
+        if (guessedWordsRef.current.has(`${user.uniqueId}-${guessUpper}`)) return;
+    
+        // Validasi kata tebakan selalu menggunakan kamus utama, tidak peduli mode permainan.
+        if (!wordService.isValidWord(guessUpper)) {
+            if (!user.uniqueId.startsWith('bot_')) {
+                showValidationToast(`<b>${user.nickname}</b>, kata '<b>${guessUpper}</b>' tidak ada di kamus!`, 'error');
+            }
+            return;
+        }
+    
+        resetInactivityTimer.current();
+
+        guessedWordsRef.current.add(`${user.uniqueId}-${guessUpper}`);
+        setUserCooldowns(prev => new Map(prev).set(user.uniqueId, now));
+    
+        const pendingGuess: GuessData = {
+            guess: guessUpper,
+            user,
+            statuses: Array(WORD_LENGTH).fill('pending')
+        };
+    
+        const tempStatuses = calculateStatuses(guessUpper, solution);
+        const correctCount = tempStatuses.filter(s => s === 'correct').length;
+        
+        let isNewBest = false;
+        if (!bestGuess || correctCount > bestGuess.statuses.filter(s => s === 'correct').length) {
+            isNewBest = true;
+        }
+
+        if (isNewBest) {
+            if (bestGuess) setRecentGuesses(prev => [bestGuess, ...prev].slice(0, 3));
+            setBestGuess(pendingGuess);
+        } else {
+            setRecentGuesses(prev => [pendingGuess, ...prev].slice(0, 3));
+        }
+        
+        setGuesses(prev => [...prev, pendingGuess]);
+    
+        setTimeout(() => {
+            const finalGuess: GuessData = { ...pendingGuess, statuses: tempStatuses };
+            setGuesses(prev => prev.map(g => (g.user.uniqueId === user.uniqueId && g.guess === guessUpper && g.statuses[0] === 'pending') ? finalGuess : g));
+            if (isNewBest) setBestGuess(finalGuess);
+            else setRecentGuesses(prev => prev.map(g => (g.user.uniqueId === user.uniqueId && g.guess === guessUpper && g.statuses[0] === 'pending') ? finalGuess : g));
+    
+            if (guessUpper === solution.toUpperCase()) {
+                endGame(user);
+            }
+        }, 100);
+    
+    }, [isGameOver, isPreparing, isLoading, isAcceptingGuesses, solution, bestGuess, showValidationToast, userCooldowns, /*endGame is now a dependency*/]);
+
+
+    const makeBotGuess = useCallback(() => {
+        if (isGameOver || !isAcceptingGuesses || !solution) return;
+        
+        const botUser = fakeUsers[Math.floor(Math.random() * fakeUsers.length)];
+        const botWord = wordService.getBotGuess(solution);
+        
+        if (botWord) {
+            processGuess(botWord, botUser);
+        }
+    }, [isGameOver, isAcceptingGuesses, solution, processGuess]);
+
+    resetInactivityTimer.current = useCallback(() => {
+        if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+        inactivityTimerRef.current = window.setTimeout(makeBotGuess, INACTIVITY_DURATION);
+    }, [makeBotGuess]);
+
     const endGame = useCallback((winner: User | null) => {
         if (isGameOver) return;
         clearAllTimers();
@@ -171,6 +250,11 @@ export const useWordleGame = ({
         }
         showEndGameModal(winner);
     }, [isGameOver, clearAllTimers, updateLeaderboard, showEndGameModal]);
+    
+    useEffect(() => {
+        // This is to update the processGuess function inside the closures of makeBotGuess and resetInactivityTimer
+    }, [processGuess, endGame]);
+
 
     const startNewGame = useCallback((specificWord?: string) => {
         clearAllTimers();
@@ -193,9 +277,9 @@ export const useWordleGame = ({
             if (!newWord) {
                 let attempts = 0;
                 do {
-                    newWord = wordService.getRandomWord(WORD_LENGTH);
+                    newWord = wordService.getNewWord(gameMode, WORD_LENGTH);
                     attempts++;
-                } while (bannedWords.has(newWord) && attempts < 50); // Safety break
+                } while (bannedWords.has(newWord) && attempts < 50);
             }
             
             if(newWord) {
@@ -208,6 +292,7 @@ export const useWordleGame = ({
                 setTimeout(() => {
                     setIsAcceptingGuesses(true);
                     setGameMessage(`Kata baru: ${WORD_LENGTH} huruf. Semangat!`);
+                    resetInactivityTimer.current();
                 }, GAME_START_COOLDOWN * 1000);
 
             } else {
@@ -215,7 +300,7 @@ export const useWordleGame = ({
             }
         }, PREPARE_TIME * 1000);
 
-    }, [clearAllTimers, onNewGameStart, bannedWords]);
+    }, [clearAllTimers, onNewGameStart, bannedWords, gameMode]);
 
     const skipWord = useCallback(() => {
         if (solution) {
@@ -223,6 +308,11 @@ export const useWordleGame = ({
         }
         startNewGame();
     }, [solution, startNewGame]);
+
+    const setGameModeAndRestart = useCallback((mode: 'random' | 'selected') => {
+        setGameMode(mode);
+        startNewGame();
+    }, [startNewGame]);
 
     const autoRestartGame = useCallback(() => {
         setIsModalOpen(false);
@@ -256,91 +346,35 @@ export const useWordleGame = ({
         };
     }, [timeLeft, isGameOver, endGame]);
     
-    const processGuess = useCallback((guess: string, user: User) => {
-        if (isGameOver || isPreparing || isLoading || !isAcceptingGuesses) return;
-
-        const now = Date.now();
-        const lastGuessTime = userCooldowns.get(user.uniqueId);
-        if (lastGuessTime && (now - lastGuessTime) < COOLDOWN_SECONDS * 1000) {
-            return; // Cooldown aktif, abaikan tebakan
-        }
-
-        guess = guess.toUpperCase();
-
-        if (guess.length !== WORD_LENGTH) {
-            return;
-        }
-
-        if (guessedWordsRef.current.has(`${user.uniqueId}-${guess}`)) {
+    const processChatMessage = useCallback((message: ChatMessage) => {
+        const comment = message.comment.trim();
+        const spacelessGuess = comment.replace(/\s+/g, '').toUpperCase();
+        if (spacelessGuess.length === WORD_LENGTH && /^[A-Z]+$/.test(spacelessGuess)) {
+            processGuess(spacelessGuess, message);
             return; 
         }
 
-        if (!wordService.isValidWord(guess)) {
-            showValidationToast(`<b>${user.nickname}</b>, kata '<b>${guess}</b>' tidak ada di kamus!`, 'error');
+        const matches = comment.match(/\b[a-zA-Z]{5}\b/g);
+        if (matches && matches.length > 0) {
+            const lastMatch = matches[matches.length - 1].toUpperCase();
+            processGuess(lastMatch, message);
             return;
         }
-
-        guessedWordsRef.current.add(`${user.uniqueId}-${guess}`);
-        setUserCooldowns(prev => new Map(prev).set(user.uniqueId, now));
-
-        const statuses = calculateStatuses(guess, solution);
-        const newGuess: GuessData = { guess, user, statuses };
-
-        setGuesses(prev => [...prev, newGuess]);
-
-        if (guess.toUpperCase() === solution.toUpperCase()) {
-            endGame(user);
-            return;
-        }
-        
-        const correctCount = statuses.filter(s => s === 'correct').length;
-        
-        if (!bestGuess || correctCount > bestGuess.statuses.filter(s => s === 'correct').length) {
-            if(bestGuess) {
-                setRecentGuesses(prev => [bestGuess, ...prev].slice(0, 3));
-            }
-            setBestGuess(newGuess);
-        } else {
-            setRecentGuesses(prev => [newGuess, ...prev].slice(0, 3));
-        }
-
-    }, [isGameOver, isPreparing, isLoading, isAcceptingGuesses, solution, bestGuess, endGame, showValidationToast, userCooldowns]);
-
-    const processChatMessage = useCallback((message: ChatMessage) => {
-        const comment = message.comment.trim();
-        const guess = comment.toUpperCase();
-        const isModerator = moderators.has(message.uniqueId.toLowerCase());
-
-        if (comment.toLowerCase() === 'free palestine') {
-            addParticipant(message, 'comment');
-            return;
-        }
-        
-        if (participants.has(message.uniqueId) || isModerator) {
-            processGuess(comment, message);
-        } else {
-            // Check if it's a guess attempt
-            if (guess.length === WORD_LENGTH && /^[A-Z]+$/.test(guess)) {
-                showParticipationReminder(message);
-            }
-        }
-    }, [processGuess, participants, moderators, addParticipant, showParticipationReminder]);
+    }, [processGuess]);
     
     const processGiftMessage = useCallback((message: GiftMessage) => {
-        addParticipant(message, 'gift');
-        
         if (message.diamondCount >= 30) {
             onInstantWin(message);
         } else if (message.diamondCount >= 10) {
             endGame(message);
         }
-    }, [endGame, addParticipant, onInstantWin]);
+    }, [endGame, onInstantWin]);
 
     const processSocialMessage = useCallback((message: SocialMessage) => {
         if (message.displayType.includes('follow')) {
-            addParticipant(message, 'follow');
+            showValidationToast(`Makasih sudah follow, <b>${message.nickname}</b>!`, 'info');
         }
-    }, [addParticipant]);
+    }, [showValidationToast]);
     
     const revealWord = useCallback(() => {
         endGame(null);
@@ -350,6 +384,7 @@ export const useWordleGame = ({
         startNewGame,
         revealWord,
         skipWord,
+        setGameModeAndRestart,
     };
     
     const gameState: WordleGameState = {
@@ -364,6 +399,7 @@ export const useWordleGame = ({
         modalContent,
         autoRestartGame,
         bannedWords,
+        gameMode,
     };
 
     return {

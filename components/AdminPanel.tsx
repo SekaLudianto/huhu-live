@@ -1,11 +1,13 @@
+
 import React, { useState } from 'react';
-import { WordleGameActions } from '../hooks/useWordleGame';
+import { WordleGameActions, WordleGameState } from '../hooks/useWordleGame';
 import { AdminIcon } from './icons/AdminIcon';
 
 interface AdminPanelProps {
     isOpen: boolean;
     onClose: () => void;
     actions: WordleGameActions;
+    gameState: WordleGameState;
     moderators: Set<string>;
     owners: Set<string>;
     addModerator: (username: string) => void;
@@ -13,7 +15,7 @@ interface AdminPanelProps {
     bannedWords: Set<string>;
 }
 
-const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, actions, moderators, owners, addModerator, removeModerator, bannedWords }) => {
+const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, actions, gameState, moderators, owners, addModerator, removeModerator, bannedWords }) => {
     const [nextWord, setNextWord] = useState('');
     const [newMod, setNewMod] = useState('');
     const [activeTab, setActiveTab] = useState('game');
@@ -54,6 +56,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, actions, moder
             addModerator(modUsername);
             setNewMod('');
         }
+    }
+
+    const handleModeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const mode = e.target.value as 'random' | 'selected';
+        actions.setGameModeAndRestart(mode);
     }
 
     const tabs = [
@@ -100,19 +107,55 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, actions, moder
 
                     <div className="space-y-4">
                         {activeTab === 'game' && (
-                            <div className="space-y-3">
-                                <button
-                                    onClick={handleStartNewGame}
-                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
-                                >
-                                    Mulai Game Baru (Acak)
-                                </button>
-                                <button
-                                    onClick={handleRevealWord}
-                                    className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
-                                >
-                                    Buka Kata Sekarang
-                                </button>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">Mode Permainan:</label>
+                                    <div className="flex items-center space-x-4">
+                                        <div className="flex items-center">
+                                            <input
+                                                id="mode-random"
+                                                name="game-mode"
+                                                type="radio"
+                                                value="random"
+                                                checked={gameState.gameMode === 'random'}
+                                                onChange={handleModeChange}
+                                                className="h-4 w-4 text-cyan-600 bg-gray-700 border-gray-600 focus:ring-cyan-500"
+                                            />
+                                            <label htmlFor="mode-random" className="ml-2 block text-sm text-gray-200">
+                                                Kata Acak (Bawaan)
+                                            </label>
+                                        </div>
+                                        <div className="flex items-center">
+                                            <input
+                                                id="mode-selected"
+                                                name="game-mode"
+                                                type="radio"
+                                                value="selected"
+                                                checked={gameState.gameMode === 'selected'}
+                                                onChange={handleModeChange}
+                                                className="h-4 w-4 text-cyan-600 bg-gray-700 border-gray-600 focus:ring-cyan-500"
+                                            />
+                                            <label htmlFor="mode-selected" className="ml-2 block text-sm text-gray-200">
+                                                Kosakata Pilihan
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="space-y-3 pt-4 border-t border-gray-700">
+                                    <button
+                                        onClick={handleStartNewGame}
+                                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+                                    >
+                                        Mulai Game Baru (Acak)
+                                    </button>
+                                    <button
+                                        onClick={handleRevealWord}
+                                        className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+                                    >
+                                        Buka Kata Sekarang
+                                    </button>
+                                </div>
                                 
                                 <div className="space-y-2 pt-2">
                                     <label htmlFor="nextWordInput" className="block text-sm font-medium text-gray-300">

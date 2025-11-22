@@ -1,3 +1,4 @@
+
 export interface User {
   uniqueId: string;
   nickname: string;

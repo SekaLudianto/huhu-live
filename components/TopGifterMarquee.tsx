@@ -1,6 +1,6 @@
 import React from 'react';
 import { TopGifterEntry } from '../types';
-import { DiamondIcon } from './icons/TabIcons';
+import { HeartIcon } from './icons/HeartIcon';
 
 interface TopGifterMarqueeProps {
   topGifters: TopGifterEntry[];
@@ -37,9 +37,7 @@ const TopGifterMarquee: React.FC<TopGifterMarqueeProps> = ({ topGifters }) => {
                             <span className="inline-flex items-center gap-1">
                                 <b className="text-pink-300">{entry.user.nickname}</b>
                                 <span className="text-yellow-400 font-semibold">{entry.totalDiamonds.toLocaleString('id-ID')}</span>
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-yellow-400">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 21l5.25-11.25L21 21m-9-3H7.5M12 21V10.5M12 10.5L4.5 3M12 10.5L19.5 3M4.5 3h15" />
-                                </svg>
+                                <HeartIcon className="w-4 h-4 text-pink-400 animate-pulse-heart" />
                             </span>
                         </React.Fragment>
                     ))}

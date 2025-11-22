@@ -51,7 +51,7 @@ const WordleGrid: React.FC<WordleGridProps> = ({ bestGuess, recentGuesses, wordL
             {Array.from({ length: wordLength }).map((_, j) => {
                 const letter = guessData.guess.charAt(j) || '';
                 const status = guessData.statuses[j] || 'empty';
-                const animationDelay = `${j * 0.05}s`;
+                const animationDelay = `${j * 100}ms`;
                 return <Tile key={`${key}-${j}`} letter={letter} status={status} animationDelay={animationDelay} />;
             })}
         </div>

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { ChatMessage, ConnectionState, GiftMessage, LikeMessage, RoomUserMessage, SocialMessage } from '../types';
 
-const BACKEND_URL = "https://4185f9db92e7.ngrok-free.app";
+const BACKEND_URL = "https://tiktok-chat-reader.zerody.one";
 
 export const useTikTok = () => {
   const socket = useRef<Socket | null>(null);
@@ -20,19 +20,22 @@ export const useTikTok = () => {
   const [totalDiamonds, setTotalDiamonds] = useState<number>(0);
   
   const lastUniqueIdRef = useRef<string>('');
-  const reconnectIntervalRef = useRef<number | null>(null);
+  const reconnectTimeoutRef = useRef<number | null>(null);
+  const reconnectAttemptRef = useRef(0);
+  
+  const MAX_RECONNECT_ATTEMPTS = 10;
+  const INITIAL_RECONNECT_DELAY = 2000;
+  const MAX_RECONNECT_DELAY = 60000;
 
-  const clearReconnectInterval = useCallback(() => {
-    if (reconnectIntervalRef.current) {
-        clearInterval(reconnectIntervalRef.current);
-        reconnectIntervalRef.current = null;
+  const clearReconnect = useCallback(() => {
+    if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
     }
   }, []);
 
   useEffect(() => {
-    socket.current = io(BACKEND_URL, {
-      transports: ['websocket'] // Prioritaskan koneksi WebSocket
-    });
+    socket.current = io(BACKEND_URL);
 
     socket.current.on('connect', () => {
       console.log('Socket connected!');
@@ -43,7 +46,7 @@ export const useTikTok = () => {
         setIsConnected(false);
         setConnectionState(null);
         setIsConnecting(false);
-        clearReconnectInterval();
+        clearReconnect();
     });
     
     socket.current.on('streamEnd', () => {
@@ -51,13 +54,14 @@ export const useTikTok = () => {
         setConnectionState(null);
         setErrorMessage('Stream ended.');
         setIsConnecting(false);
-        clearReconnectInterval();
+        clearReconnect();
     });
 
     socket.current.on('tiktokConnected', (state: any) => {
       if (state && typeof state === 'object' && state.roomId) {
           console.log('TikTok Connected:', state);
-          clearReconnectInterval();
+          clearReconnect();
+          reconnectAttemptRef.current = 0;
           setConnectionState(state as ConnectionState);
           setIsConnected(true);
           setErrorMessage(null);
@@ -70,37 +74,50 @@ export const useTikTok = () => {
     });
 
     socket.current.on('tiktokDisconnected', (reason: any) => {
-      console.warn('TikTok Disconnected:', reason);
-      setIsConnected(false);
-      setConnectionState(null);
-      
-      clearReconnectInterval();
-      
-      const reasonString = typeof reason === 'string' ? reason : 'Stream ended or connection lost.';
-
-      // Do not try to reconnect if the stream has permanently ended.
-      if (typeof reason === 'string' && reason.toLowerCase().includes('stream ended')) {
-          setErrorMessage(reason);
-          setIsConnecting(false);
-          lastUniqueIdRef.current = ''; // Prevent retries
-          return;
-      }
-
-      if (lastUniqueIdRef.current) {
-          const retryMessage = `${reasonString}. Mencoba lagi...`;
-          setErrorMessage(retryMessage);
-          setIsConnecting(true); // Keep UI in connecting state
-
-          reconnectIntervalRef.current = window.setInterval(() => {
-              if (socket.current) {
-                  console.log(`Retrying connection to ${lastUniqueIdRef.current}...`);
-                  socket.current.emit('setUniqueId', lastUniqueIdRef.current, { enableExtendedGiftInfo: true });
-              }
-          }, 5000); // Retry every 5 seconds
-      } else {
-          setErrorMessage(reasonString);
-          setIsConnecting(false);
-      }
+        console.warn('TikTok Disconnected:', reason);
+        setIsConnected(false);
+        setConnectionState(null);
+        clearReconnect();
+    
+        const reasonString = typeof reason === 'string' ? reason : 'Koneksi terputus.';
+    
+        // Stop retrying on fatal errors
+        if (typeof reason === 'string' && (reason.toLowerCase().includes('stream ended') || reason.toLowerCase().includes('host not found'))) {
+            setErrorMessage(reasonString);
+            setIsConnecting(false);
+            lastUniqueIdRef.current = '';
+            reconnectAttemptRef.current = 0;
+            return;
+        }
+    
+        if (lastUniqueIdRef.current) {
+            const attempt = reconnectAttemptRef.current;
+    
+            if (attempt >= MAX_RECONNECT_ATTEMPTS) {
+                setErrorMessage(`Gagal menyambung kembali setelah ${attempt} percobaan. Silakan muat ulang halaman.`);
+                setIsConnecting(false);
+                lastUniqueIdRef.current = '';
+                reconnectAttemptRef.current = 0;
+                return;
+            }
+    
+            const delay = Math.min(INITIAL_RECONNECT_DELAY * Math.pow(2, attempt), MAX_RECONNECT_DELAY);
+            
+            setErrorMessage(`${reasonString} Mencoba lagi dalam ${Math.round(delay / 1000)} detik...`);
+            setIsConnecting(true);
+    
+            reconnectTimeoutRef.current = window.setTimeout(() => {
+                if (socket.current && lastUniqueIdRef.current) {
+                    console.log(`Mencoba koneksi ulang ke ${lastUniqueIdRef.current} (percobaan ${attempt + 1})...`);
+                    socket.current.emit('setUniqueId', lastUniqueIdRef.current, { enableExtendedGiftInfo: true });
+                }
+            }, delay);
+    
+            reconnectAttemptRef.current += 1;
+        } else {
+            setErrorMessage(reasonString);
+            setIsConnecting(false);
+        }
     });
 
     socket.current.on('chat', (msg: any) => {
@@ -116,9 +133,6 @@ export const useTikTok = () => {
             if (msg.giftType === 1 && !msg.repeatEnd) {
                 // Streak gift, wait for it to end. We still update the state for UI feedback.
             } else {
-                // To prevent double counting on re-renders, this part should ideally be handled
-                // by consumers with proper state management, as the socket event can fire multiple times.
-                // For now, the consumer (App.tsx) handles its own logic.
                 const diamonds = (msg.diamondCount || 0) * (msg.repeatCount || 1);
                 if (diamonds > 0) {
                     setTotalDiamonds(prev => prev + diamonds);
@@ -158,20 +172,21 @@ export const useTikTok = () => {
     });
 
     return () => {
-      clearReconnectInterval();
+      clearReconnect();
       socket.current?.disconnect();
     };
-  }, [clearReconnectInterval]);
+  }, [clearReconnect]);
   
   const connect = useCallback((uniqueId: string) => {
     if (socket.current && uniqueId) {
-      clearReconnectInterval();
+      clearReconnect();
+      reconnectAttemptRef.current = 0;
       lastUniqueIdRef.current = uniqueId;
       setIsConnecting(true);
       setErrorMessage(null);
       socket.current.emit('setUniqueId', uniqueId, { enableExtendedGiftInfo: true });
     }
-  }, [clearReconnectInterval]);
+  }, [clearReconnect]);
 
   return {
     isConnected,

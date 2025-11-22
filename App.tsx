@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useTikTok } from './hooks/useTikTok';
 import { useWordleGame } from './hooks/useWordleGame';
@@ -13,9 +14,11 @@ import RankOverlay from './components/RankOverlay';
 import SultanOverlay from './components/SultanOverlay';
 import FollowMeOverlay from './components/FollowMeOverlay';
 import AdminPanel from './components/AdminPanel';
-import ParticipationReminderOverlay from './components/ParticipationReminderOverlay';
 import RankInfoOverlay from './components/RankInfoOverlay';
 import BroadcastMessageOverlay from './components/BroadcastMessageOverlay';
+import WelcomeToast from './components/WelcomeToast';
+import MyRankToast from './components/MyRankToast';
+import InfoToast from './components/InfoToast';
 import { User, LeaderboardEntry, ChatMessage, GiftMessage, SocialMessage, ConnectionState, TopGifterEntry } from './types';
 import { GameIcon, LeaderboardIcon, StatsIcon, DiamondIcon, SocialIcon } from './components/icons/TabIcons';
 import { SpinnerIcon } from './components/icons/SpinnerIcon';
@@ -23,7 +26,7 @@ import { AdminIcon } from './components/icons/AdminIcon';
 import { leaderboardService } from './services/firebaseService';
 import SocialTabContent from './components/SocialTabContent';
 
-const TARGET_USERNAME = 'goldaaac';
+const TARGET_USERNAME = 'achmadsyams';
 
 const App: React.FC = () => {
     const { 
@@ -51,17 +54,24 @@ const App: React.FC = () => {
     const [owners] = useState<Set<string>>(new Set(['achmadsyams', 'ahmadsyams.jpg']));
     const [moderators, setModerators] = useState<Set<string>>(new Set([...owners, 'kambing.gimang']));
     const [chatQueue, setChatQueue] = useState<ChatMessage[]>([]);
-    const [reminderInfo, setReminderInfo] = useState<{ user: User | null; isOpen: boolean }>({ user: null, isOpen: false });
     const [rankInfo, setRankInfo] = useState<{ user: User; wins: number; rank: number; isOpen: boolean } | null>(null);
+    const [myRankToastInfo, setMyRankToastInfo] = useState<{ user: User; wins: number; rank: number } | null>(null);
     const [broadcastInfo, setBroadcastInfo] = useState<{ user: User; message: string; isOpen: boolean } | null>(null);
+    const [welcomeUser, setWelcomeUser] = useState<User | null>(null);
+    const [welcomedUsers, setWelcomedUsers] = useState<Set<string>>(new Set());
+    const [infoToast, setInfoToast] = useState<{ message: string; key: number } | null>(null);
 
 
     const rankOverlayTimeoutRef = useRef<number | null>(null);
     const sultanTimeoutRef = useRef<number | null>(null);
     const validationTimeoutRef = useRef<number | null>(null);
-    const reminderTimeoutRef = useRef<number | null>(null);
     const rankInfoTimeoutRef = useRef<number | null>(null);
+    const myRankToastTimeoutRef = useRef<number | null>(null);
     const broadcastTimeoutRef = useRef<number | null>(null);
+    const welcomeToastTimeoutRef = useRef<number | null>(null);
+    const infoToastIndex = useRef(0);
+    // FIX: Changed NodeJS.Timeout to number for browser compatibility.
+    const infoToastIntervalRef = useRef<number | null>(null);
     const lastProcessedGiftRef = useRef<GiftMessage | null>(null);
     const lastProcessedSocialRef = useRef<SocialMessage | null>(null);
     const prevConnectionStateRef = useRef<ConnectionState | null>(null);
@@ -85,12 +95,50 @@ const App: React.FC = () => {
         setLeaderboard(data);
     }, []);
 
+    const infoMessages = [
+        "<b>Perintah Game:</b> Ketik <code>!rank</code> untuk papan peringkat, <code>!myrank</code> untuk cek skormu, atau <code>!win</code> untuk info kemenangan.",
+        "<b>Tips Menebak:</b> Kata diblokir? Coba akali dengan spasi atau titik. Contoh: <code>K A T A</code> atau <code>K.A.T.A</code>",
+        "<b>Info Waktu:</b> Waktu di layar adalah waktu resmi game. Mungkin ada sedikit jeda (delay) dari waktu LIVE sebenarnya.",
+    ];
+
+    useEffect(() => {
+        if (isConnected) {
+            if (infoToastIntervalRef.current) {
+                clearInterval(infoToastIntervalRef.current);
+            }
+
+            const showNextToast = () => {
+                const nextMessage = infoMessages[infoToastIndex.current];
+                infoToastIndex.current = (infoToastIndex.current + 1) % infoMessages.length;
+                setInfoToast({ message: nextMessage, key: Date.now() });
+            };
+
+            const initialTimeout = setTimeout(showNextToast, 7000); 
+            infoToastIntervalRef.current = window.setInterval(showNextToast, 20000);
+
+            return () => {
+                clearTimeout(initialTimeout);
+                if (infoToastIntervalRef.current) {
+                    clearInterval(infoToastIntervalRef.current);
+                }
+            };
+        } else {
+            if (infoToastIntervalRef.current) {
+                clearInterval(infoToastIntervalRef.current);
+                infoToastIntervalRef.current = null;
+            }
+            setInfoToast(null);
+        }
+    }, [isConnected]);
+
     useEffect(() => {
         if (connectionState && connectionState !== prevConnectionStateRef.current) {
             setTopGifters([]);
+            setWelcomedUsers(new Set());
             prevConnectionStateRef.current = connectionState;
         } else if (!isConnected) {
             setTopGifters([]);
+            setWelcomedUsers(new Set());
             prevConnectionStateRef.current = null;
         }
     }, [isConnected, connectionState]);
@@ -103,16 +151,6 @@ const App: React.FC = () => {
         validationTimeoutRef.current = window.setTimeout(() => {
             setValidationToast({ show: false, content: '', type: 'info' });
         }, 4000); // Increased duration to 4 seconds
-    }, []);
-
-    const showParticipationReminder = useCallback((user: User) => {
-        if (reminderTimeoutRef.current) {
-            clearTimeout(reminderTimeoutRef.current);
-        }
-        setReminderInfo({ user, isOpen: true });
-        reminderTimeoutRef.current = window.setTimeout(() => {
-            setReminderInfo({ user: null, isOpen: false });
-        }, 5000); // Show for 5 seconds
     }, []);
 
     const updateLeaderboard = useCallback((winner: User) => {
@@ -133,7 +171,6 @@ const App: React.FC = () => {
         moderators,
         updateLeaderboard,
         showValidationToast,
-        showParticipationReminder,
         onInstantWin: handleInstantWin,
         onNewGameStart: handleNewGameStart,
     });
@@ -175,6 +212,27 @@ const App: React.FC = () => {
                 if (rankOverlayTimeoutRef.current) clearTimeout(rankOverlayTimeoutRef.current);
                 setIsRankOverlayVisible(true);
                 rankOverlayTimeoutRef.current = window.setTimeout(() => setIsRankOverlayVisible(false), 5000);
+            } else if (comment.toLowerCase() === '!myrank') {
+                const user = messageToProcess;
+                const userIndex = leaderboard.findIndex(entry => entry.user.uniqueId === user.uniqueId);
+
+                if (userIndex !== -1) {
+                    if (myRankToastTimeoutRef.current) {
+                        clearTimeout(myRankToastTimeoutRef.current);
+                    }
+                    
+                    setMyRankToastInfo({
+                        user,
+                        wins: leaderboard[userIndex].wins,
+                        rank: userIndex + 1,
+                    });
+
+                    myRankToastTimeoutRef.current = window.setTimeout(() => {
+                        setMyRankToastInfo(null);
+                    }, 5000); // Durasi toast 5 detik
+                } else {
+                    showValidationToast(`<b>${user.nickname}</b>, kamu belum pernah menang. Terus tebak!`, 'info');
+                }
             } else if (comment === '!win') {
                 const user = messageToProcess;
                 const userIndex = leaderboard.findIndex(entry => entry.user.uniqueId === user.uniqueId);
@@ -273,10 +331,21 @@ const App: React.FC = () => {
 
     useEffect(() => {
         if (latestSocialMessage && latestSocialMessage !== lastProcessedSocialRef.current) {
+            if (latestSocialMessage.displayType === 'pm_main_join_message_viewer_2' && !welcomedUsers.has(latestSocialMessage.uniqueId)) {
+                if (welcomeToastTimeoutRef.current) {
+                    clearTimeout(welcomeToastTimeoutRef.current);
+                }
+                setWelcomeUser(latestSocialMessage);
+                setWelcomedUsers(prev => new Set(prev).add(latestSocialMessage.uniqueId));
+                welcomeToastTimeoutRef.current = window.setTimeout(() => {
+                    setWelcomeUser(null);
+                }, 5000);
+            }
+            
             wordle.processSocialMessage(latestSocialMessage);
             lastProcessedSocialRef.current = latestSocialMessage;
         }
-    }, [latestSocialMessage, wordle]);
+    }, [latestSocialMessage, wordle, welcomedUsers]);
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -292,9 +361,11 @@ const App: React.FC = () => {
             if (rankOverlayTimeoutRef.current) clearTimeout(rankOverlayTimeoutRef.current);
             if (sultanTimeoutRef.current) clearTimeout(sultanTimeoutRef.current);
             if (validationTimeoutRef.current) clearTimeout(validationTimeoutRef.current);
-            if (reminderTimeoutRef.current) clearTimeout(reminderTimeoutRef.current);
             if (rankInfoTimeoutRef.current) clearTimeout(rankInfoTimeoutRef.current);
+            if (myRankToastTimeoutRef.current) clearTimeout(myRankToastTimeoutRef.current);
             if (broadcastTimeoutRef.current) clearTimeout(broadcastTimeoutRef.current);
+            if (welcomeToastTimeoutRef.current) clearTimeout(welcomeToastTimeoutRef.current);
+            if (infoToastIntervalRef.current) clearInterval(infoToastIntervalRef.current);
         };
     }, []);
 
@@ -329,6 +400,15 @@ const App: React.FC = () => {
         <div className="w-full h-screen md:min-h-screen flex items-center justify-center p-2 md:p-4">
             <div className="mx-auto bg-gray-800 md:rounded-2xl shadow-lg p-2 md:p-6 flex flex-col w-full h-full md:max-w-6xl md:h-auto md:max-h-[95vh] relative">
                 
+                <WelcomeToast user={welcomeUser} />
+                {myRankToastInfo && <MyRankToast user={myRankToastInfo.user} wins={myRankToastInfo.wins} rank={myRankToastInfo.rank} />}
+                {infoToast && (
+                    <InfoToast 
+                        key={infoToast.key}
+                        message={infoToast.message}
+                    />
+                )}
+
                 <button
                     onClick={() => setIsAdminPanelOpen(true)}
                     className="absolute top-2 left-2 md:top-4 md:left-4 z-30 p-2 bg-gray-900/50 hover:bg-gray-700 rounded-full text-gray-400 hover:text-white transition-colors"
@@ -350,7 +430,6 @@ const App: React.FC = () => {
                     gift={sultanInfo?.gift || null} 
                 />
                  <FollowMeOverlay winner={followMeWinner} />
-                 <ParticipationReminderOverlay isOpen={reminderInfo.isOpen} user={reminderInfo.user} />
                  <RankInfoOverlay 
                     isOpen={!!rankInfo?.isOpen}
                     user={rankInfo?.user || null}
@@ -361,6 +440,7 @@ const App: React.FC = () => {
                     isOpen={isAdminPanelOpen} 
                     onClose={() => setIsAdminPanelOpen(false)}
                     actions={wordle.actions}
+                    gameState={wordle.gameState}
                     moderators={moderators}
                     owners={owners}
                     addModerator={addModerator}
